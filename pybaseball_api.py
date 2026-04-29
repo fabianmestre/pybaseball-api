@@ -4,7 +4,7 @@ Documentación: http://localhost:8000/docs (Swagger UI)
 Alternativa: http://localhost:8000/redoc (ReDoc)
 """
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Path
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import Optional, List
