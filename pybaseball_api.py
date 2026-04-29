@@ -387,8 +387,8 @@ async def get_team_batting(request: TeamBattingRequest):
 
 @app.get("/team-batting-bref/{team}/{start_season}", tags=["Equipos"])
 async def get_team_batting_bref(
-    team: str = Query(..., description="Ej: NYY, BOS, LAD"),
-    start_season: int = Query(..., description="Año inicio"),
+    team: str = Path(..., description="Ej: NYY, BOS, LAD"),
+    start_season: int = Path(..., description="Año inicio"),
     end_season: Optional[int] = Query(None, description="Año fin")
 ):
     """
