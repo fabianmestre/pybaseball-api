@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  pybaseball-api:
+    build: .
+    container_name: pybaseball-api
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=development
+      - LOG_LEVEL=info
+    restart: unless-stopped
+    # Para desarrollo, descomentar para ver logs en vivo
+    # stdin_open: true
+    # tty: true
