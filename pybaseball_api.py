@@ -336,7 +336,7 @@ async def player_lookup(request: PlayerIdRequest):
 
 @app.get("/player-reverse-lookup/{player_ids}", tags=["Jugadores"])
 async def player_reverse_lookup(
-    player_ids: str = Query(..., description="IDs separados por comas"),
+    player_ids: str = Path(..., description="IDs separados por comas"),
     key_type: str = Query("mlbam", description="Tipo: mlbam, retro, bbref, fangraphs")
 ):
     """
