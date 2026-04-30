@@ -863,6 +863,86 @@ async def ranking_oaa_percentile():
     return generate_percentiles_ranking("oaa", "Outs Above Average Percentile", "Percentil de OAA. Mide valor defensivo comparado con promedio de su posición.")
 
 
+# ============================================================================
+# RUTAS - SWING PATH
+# ============================================================================
+
+@app.get("/debug/swing-path-raw", tags=["Debug"])
+async def debug_swing_path_raw():
+    """DEBUG: Ver estructura de Swing Path sheet"""
+    try:
+        sheet_name = "Swing Path"
+        encoded = urllib.parse.quote(sheet_name)
+        url = f"https://docs.google.com/spreadsheets/d/{GOOGLE_SHEET_ID}/gviz/tq?tqx=out:csv&sheet={encoded}"
+        df = pd.read_csv(url)
+        return {
+            "columns": df.columns.tolist(),
+            "first_2_rows": df.head(2).to_dict(orient='records'),
+            "total_rows": int(len(df)),
+            "num_columns": int(len(df.columns))
+        }
+    except Exception as e:
+        return {"error": str(e), "type": type(e).__name__}
+
+
+def generate_swing_path_ranking(metric: str, ranking_name: str, description: str, ascending: bool = False):
+    """Genera un ranking desde la hoja Swing Path"""
+    try:
+        sheet_name = "Swing Path"
+        encoded = urllib.parse.quote(sheet_name)
+        url = f"https://docs.google.com/spreadsheets/d/{GOOGLE_SHEET_ID}/gviz/tq?tqx=out:csv&sheet={encoded}"
+        df = pd.read_csv(url)
+
+        # Renombrar columnas según estructura: id, name, side, avg_bat_speed, swing_tilt, attack_angle, attack_direction, ideal_attack_angle, avg_intercept_y, avg_intercept_y, avg_batter_y_pc, avg_batter_x_pc, competitive_swings
+        new_cols = ['id', 'name', 'side', 'avg_bat_speed', 'swing_tilt', 'attack_angle', 'attack_direction', 'ideal_attack_angle', 'avg_intercept_y', 'avg_intercept_x', 'avg_batter_y_pc', 'avg_batter_x_pc', 'competitive_swings']
+        new_cols += [f'col_{i}' for i in range(len(new_cols), len(df.columns))]
+        df.columns = new_cols
+
+        df_clean = df.dropna(subset=[metric]).copy()
+        df_clean[metric] = pd.to_numeric(df_clean[metric], errors='coerce')
+        df_clean = df_clean.dropna(subset=[metric])
+
+        df_sorted = df_clean.sort_values(by=metric, ascending=ascending)
+        top_10 = []
+        for rank, (_, row) in enumerate(df_sorted.head(10).iterrows(), 1):
+            value = round(float(row[metric]), 2) if pd.notna(row[metric]) else None
+            player_name = str(row['name'])
+            top_10.append(RankingRecord(
+                rank=rank,
+                player_name=player_name,
+                value=value,
+                percentile=round(((len(df_clean) - rank) / len(df_clean)) * 100, 1)
+            ))
+
+        return RankingResponse(ranking_id=ranking_name.replace(" ", "-"), ranking_name=ranking_name, metric=metric, description=description, top_10=top_10, league_avg=round(df_clean[metric].mean(), 2), league_min=round(df_clean[metric].min(), 2), league_max=round(df_clean[metric].max(), 2), timestamp=datetime.now().isoformat())
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/rankings/avg-bat-speed", response_model=RankingResponse, tags=["Rankings - Swing Path"])
+async def ranking_avg_bat_speed():
+    """Top 10 por velocidad promedio del bate"""
+    return generate_swing_path_ranking("avg_bat_speed", "Velocidad Promedio del Bate", "Velocidad promedio del bate en mph. Mayor velocidad correlaciona con potencial ofensivo.")
+
+
+@app.get("/rankings/swing-tilt", response_model=RankingResponse, tags=["Rankings - Swing Path"])
+async def ranking_swing_tilt():
+    """Top 10 por inclinación del swing"""
+    return generate_swing_path_ranking("swing_tilt", "Inclinación del Swing", "Ángulo de inclinación del swing. Mide la orientación vertical del movimiento del bate.")
+
+
+@app.get("/rankings/attack-angle", response_model=RankingResponse, tags=["Rankings - Swing Path"])
+async def ranking_attack_angle():
+    """Top 10 por ángulo de ataque"""
+    return generate_swing_path_ranking("attack_angle", "Ángulo de Ataque", "Ángulo de ataque del bate en grados. Ángulos óptimos (15-35°) maximizan distancia.")
+
+
+@app.get("/rankings/competitive-swings", response_model=RankingResponse, tags=["Rankings - Swing Path"])
+async def ranking_competitive_swings():
+    """Top 10 por cantidad de swings competitivos"""
+    return generate_swing_path_ranking("competitive_swings", "Swings Competitivos", "Cantidad de swings competitivos. Mide disciplina y selectividad en zona de strike.")
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(
