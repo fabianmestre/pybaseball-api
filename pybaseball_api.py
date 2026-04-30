@@ -650,10 +650,11 @@ async def get_ranking_1():
         df_sorted = df_clean.sort_values(metric, ascending=False)
         df_top = df_sorted.head(10)
         top_10 = []
-        for idx, (_, row) in enumerate(df_top.iterrows(), 1):
-            pct = (df_clean[metric] <= row[metric]).sum() / len(df_clean) * 100
-            name = str(row.get('player', 'Unknown'))
-            top_10.append(RankingRecord(rank=idx, player_name=name, value=round(float(row[metric]), 2), percentile=round(pct, 1)))
+        names = df_top['player'].tolist() if 'player' in df_top.columns else [f"Player {i}" for i in range(1, 11)]
+        values = df_top[metric].tolist()
+        for idx, (name, value) in enumerate(zip(names, values), 1):
+            pct = (df_clean[metric] <= value).sum() / len(df_clean) * 100
+            top_10.append(RankingRecord(rank=idx, player_name=str(name), value=round(float(value), 2), percentile=round(pct, 1)))
         return RankingResponse(ranking_id="1", ranking_name="Exit Velocity", metric="avg_hit_speed", top_10=top_10, league_avg=round(df_clean[metric].mean(), 2), league_min=round(df_clean[metric].min(), 2), league_max=round(df_clean[metric].max(), 2), timestamp=datetime.now().isoformat())
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
