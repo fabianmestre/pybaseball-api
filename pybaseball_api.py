@@ -622,19 +622,6 @@ async def list_rankings():
     return {"available_rankings": rankings, "total": 29, "usage": "GET /rankings/{ranking_id}"}
 
 
-@app.get("/rankings/{ranking_id}", response_model=RankingResponse, tags=["Rankings"])
-async def get_ranking(ranking_id: str = Path(..., description="ID 1-29")):
-    """Obtiene un ranking por ID"""
-    rankings_map = {"1": ("Exit Velocity", "avg_hit_speed", False), "2": ("Expected Stats", "est_woba", False), "3": ("Home Runs", "xhr", False), "4": ("Percentiles", "xwoba", False), "5": ("Batting Run Value", "runs_all", False), "6": ("Swing Path", "avg_bat_speed", False), "7": ("Bat Tracking", "hard_swing_rate", False), "8": ("Batting Stance", "avg_foot_sep", False), "9": ("Batted Ball", "fb_rate", False), "10": ("Pitch Arsenal Stats", "run_value_per_100", False), "11": ("Pitch Tempo", "median_seconds_empty", True), "12": ("cat-Catcher Framing", "rv_tot", False), "13": ("cat-Pop Time", "pop_2b_sba", True), "14": ("cat-Catcher Blocking", "catcher_blocking_runs", False), "15": ("cat-Catcher Stance", "one_knee_framing_rv", False), "16": ("cat-Catcher Throwing", "rate_cs", False), "17": ("run-Sprint Speed", "sprint_speed", False), "18": ("run-Baserunning Run Value", "runner_runs_tot", False), "19": ("run-Basestealing Run Value", "runs_stolen_on_running_act", False), "20": ("run-Extra Bases Taken", "runner_runs", False), "21": ("run-90ft Running Splits", "seconds_since_hit_090", True), "22": ("fld-Fielding Run Value", "total_runs", False), "23": ("fld-Arm Strength", "max_arm_strength", False), "24": ("fld-Arm Value", "fielder_runs", False), "25": ("fld-Outfield Catch Prob", "oaa", False), "26": ("fld-Outfield Dir OAA", "n_outs_above_average", False), "27": ("fld-Outfielder Jump", "outs_above_average", False), "28": ("fld-Outs Above Average", "outs_above_average", False), "29": ("Year to Year Changes", "delta_2025_2026", False)}
-    if ranking_id not in rankings_map:
-        raise HTTPException(status_code=404, detail="Ranking no encontrado")
-    sheet_name, metric, ascending = rankings_map[ranking_id]
-    df = read_sheet_data(sheet_name)
-    if df.empty:
-        raise HTTPException(status_code=500, detail=f"Error: {sheet_name}")
-    return generate_ranking(df, metric, ranking_id, sheet_name, 10, ascending)
-
-
 @app.get("/rankings/1", response_model=RankingResponse, tags=["Rankings"])
 async def get_ranking_1():
     """Obtiene el ranking 1 (Exit Velocity)"""
@@ -658,6 +645,19 @@ async def get_ranking_1():
         return RankingResponse(ranking_id="1", ranking_name="Exit Velocity", metric="avg_hit_speed", top_10=top_10, league_avg=round(df_clean[metric].mean(), 2), league_min=round(df_clean[metric].min(), 2), league_max=round(df_clean[metric].max(), 2), timestamp=datetime.now().isoformat())
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/rankings/{ranking_id}", response_model=RankingResponse, tags=["Rankings"])
+async def get_ranking(ranking_id: str = Path(..., description="ID 1-29")):
+    """Obtiene un ranking por ID"""
+    rankings_map = {"1": ("Exit Velocity", "avg_hit_speed", False), "2": ("Expected Stats", "est_woba", False), "3": ("Home Runs", "xhr", False), "4": ("Percentiles", "xwoba", False), "5": ("Batting Run Value", "runs_all", False), "6": ("Swing Path", "avg_bat_speed", False), "7": ("Bat Tracking", "hard_swing_rate", False), "8": ("Batting Stance", "avg_foot_sep", False), "9": ("Batted Ball", "fb_rate", False), "10": ("Pitch Arsenal Stats", "run_value_per_100", False), "11": ("Pitch Tempo", "median_seconds_empty", True), "12": ("cat-Catcher Framing", "rv_tot", False), "13": ("cat-Pop Time", "pop_2b_sba", True), "14": ("cat-Catcher Blocking", "catcher_blocking_runs", False), "15": ("cat-Catcher Stance", "one_knee_framing_rv", False), "16": ("cat-Catcher Throwing", "rate_cs", False), "17": ("run-Sprint Speed", "sprint_speed", False), "18": ("run-Baserunning Run Value", "runner_runs_tot", False), "19": ("run-Basestealing Run Value", "runs_stolen_on_running_act", False), "20": ("run-Extra Bases Taken", "runner_runs", False), "21": ("run-90ft Running Splits", "seconds_since_hit_090", True), "22": ("fld-Fielding Run Value", "total_runs", False), "23": ("fld-Arm Strength", "max_arm_strength", False), "24": ("fld-Arm Value", "fielder_runs", False), "25": ("fld-Outfield Catch Prob", "oaa", False), "26": ("fld-Outfield Dir OAA", "n_outs_above_average", False), "27": ("fld-Outfielder Jump", "outs_above_average", False), "28": ("fld-Outs Above Average", "outs_above_average", False), "29": ("Year to Year Changes", "delta_2025_2026", False)}
+    if ranking_id not in rankings_map:
+        raise HTTPException(status_code=404, detail="Ranking no encontrado")
+    sheet_name, metric, ascending = rankings_map[ranking_id]
+    df = read_sheet_data(sheet_name)
+    if df.empty:
+        raise HTTPException(status_code=500, detail=f"Error: {sheet_name}")
+    return generate_ranking(df, metric, ranking_id, sheet_name, 10, ascending)
 
 
 @app.get("/debug/ranking1-raw", tags=["Debug"])
