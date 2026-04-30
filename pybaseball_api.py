@@ -841,9 +841,9 @@ def generate_home_runs_ranking(metric: str, ranking_name: str, description: str,
         url = f"https://docs.google.com/spreadsheets/d/{GOOGLE_SHEET_ID}/gviz/tq?tqx=out:csv&sheet={encoded}"
         df = pd.read_csv(url)
 
-        # Será actualizado una vez que veamos la estructura real
-        # Por ahora usamos mapeo genérico
-        new_cols = [f'col_{i}' for i in range(len(df.columns))]
+        # Renombrar columnas según estructura real: player, player_id, team_abbrev, year, type, avg_hr_trot, doublers, mostly_gone, no_doublers, no_doubler_per_hr_total, xhr, xhr_diff
+        new_cols = ['player', 'player_id', 'team_abbrev', 'year', 'type', 'avg_hr_trot', 'doublers', 'mostly_gone', 'no_doublers', 'no_doubler_per_hr_total', 'xhr', 'xhr_diff']
+        new_cols += [f'col_{i}' for i in range(len(new_cols), len(df.columns))]
         df.columns = new_cols
 
         df_clean = df.dropna(subset=[metric]).copy()
@@ -854,7 +854,7 @@ def generate_home_runs_ranking(metric: str, ranking_name: str, description: str,
         top_10 = []
         for rank, (_, row) in enumerate(df_sorted.head(10).iterrows(), 1):
             value = round(float(row[metric]), 2) if pd.notna(row[metric]) else None
-            player_name = str(row.get('col_0', f'Player {rank}'))
+            player_name = str(row['player'])
             top_10.append(RankingRecord(
                 rank=rank,
                 player_name=player_name,
@@ -865,6 +865,36 @@ def generate_home_runs_ranking(metric: str, ranking_name: str, description: str,
         return RankingResponse(ranking_id=ranking_name.replace(" ", "-"), ranking_name=ranking_name, metric=metric, description=description, top_10=top_10, league_avg=round(df_clean[metric].mean(), 2), league_min=round(df_clean[metric].min(), 2), league_max=round(df_clean[metric].max(), 2), timestamp=datetime.now().isoformat())
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/rankings/home-run-trot-time", response_model=RankingResponse, tags=["Rankings - Home Runs"])
+async def ranking_home_run_trot_time():
+    """Top 10 por tiempo promedio de trote en home runs"""
+    return generate_home_runs_ranking("avg_hr_trot", "Tiempo Promedio de Trote en HR", "Tiempo promedio (en segundos) del trote en home runs. Jugadores más rápidos tienen menores tiempos.", ascending=True)
+
+
+@app.get("/rankings/home-run-doublers", response_model=RankingResponse, tags=["Rankings - Home Runs"])
+async def ranking_home_run_doublers():
+    """Top 10 por cantidad de home runs doublers"""
+    return generate_home_runs_ranking("doublers", "Home Runs Doublers", "Cantidad de home runs clasificados como 'doublers' (bolas que podrían caer como dobles). Mide HRs más cercanos a la línea de foul.")
+
+
+@app.get("/rankings/home-run-mostly-gone", response_model=RankingResponse, tags=["Rankings - Home Runs"])
+async def ranking_home_run_mostly_gone():
+    """Top 10 por home runs mostly gone"""
+    return generate_home_runs_ranking("mostly_gone", "Home Runs Mostly Gone", "Cantidad de home runs clasificados como 'mostly gone' (claramente fuera). HRs con trayectoria más definitiva.")
+
+
+@app.get("/rankings/expected-home-runs", response_model=RankingResponse, tags=["Rankings - Home Runs"])
+async def ranking_expected_home_runs():
+    """Top 10 por home runs esperados (xHR)"""
+    return generate_home_runs_ranking("xhr", "Expected Home Runs (xHR)", "Cantidad esperada de home runs basada en calidad de contacto. xHR predice mejor que HR actual.")
+
+
+@app.get("/rankings/home-run-efficiency", response_model=RankingResponse, tags=["Rankings - Home Runs"])
+async def ranking_home_run_efficiency():
+    """Top 10 por diferencia entre home runs actual vs esperado"""
+    return generate_home_runs_ranking("xhr_diff", "Home Run Efficiency (HR vs xHR)", "Diferencia entre home runs actual y esperado. Positivo = bateador sobreperfoma; negativo = subperfoma.")
 
 
 if __name__ == "__main__":
