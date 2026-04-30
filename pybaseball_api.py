@@ -545,15 +545,22 @@ logger = logging.getLogger(__name__)
 GOOGLE_SHEET_ID = "1O9vFxcntbHRa5EUGL-b3yyMwICc2GNSdvwYPLEaTPro"
 
 
-class RankingRecord(BaseModel):
-    rank: int = Field(..., description="Posición en ranking")
-    player_name: str = Field(..., description="Nombre del jugador")
-    value: float = Field(..., description="Valor métrica")
-    percentile: Optional[float] = Field(None, description="Percentil")
-    details: Optional[dict] = Field(None, description="Detalles")
-
-
-class RankingResponse(BaseModel):
+def read_sheet_data(sheet_name: str) -> pd.DataFrame:
+    try:
+        # Encode sheet name properly for URL
+        import urllib.parse
+        encoded_name = urllib.parse.quote(sheet_name)
+        url = f"https://docs.google.com/spreadsheets/d/{GOOGLE_SHEET_ID}/gviz/tq?tqx=out:csv&sheet={encoded_name}"
+        logger.info(f"Intentando leer: {url}")
+        df = pd.read_csv(url)
+        if df.empty:
+            logger.warning(f"Sheet {sheet_name} vacío o no encontrado")
+            return pd.DataFrame()
+        logger.info(f"✓ {sheet_name}: {len(df)} filas, {len(df.columns)} columnas")
+        return df
+    except Exception as e:
+        logger.error(f"Error leyendo {sheet_name}: {str(e)}")
+        return pd.DataFrame()
     ranking_id: str = Field(..., description="ID ranking (1-29)")
     ranking_name: str = Field(..., description="Nombre ranking")
     metric: str = Field(..., description="Métrica principal")
