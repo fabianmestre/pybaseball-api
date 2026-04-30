@@ -638,24 +638,20 @@ async def get_ranking(ranking_id: str = Path(..., description="ID 1-29")):
 @app.get("/rankings/1", response_model=RankingResponse, tags=["Rankings"])
 async def get_ranking_1():
     """Obtiene el ranking 1 (Exit Velocity)"""
-    raise HTTPException(status_code=500, detail="TEST ERROR - Code is being updated")
     try:
         sheet_name = "Exit Velocity"
         encoded = urllib.parse.quote(sheet_name)
         url = f"https://docs.google.com/spreadsheets/d/{GOOGLE_SHEET_ID}/gviz/tq?tqx=out:csv&sheet={encoded}"
         df = pd.read_csv(url)
-        df.columns = [col.strip().lower() for col in df.columns]
+        df.columns = ['player', 'player_id', 'attempts', 'avg_hit_angle', 'angle_sweet_spot', 'max_hit_speed', 'avg_hit_speed', 'ev50', 'fbld', 'gb', 'max_distance', 'avg_distance']
         metric = "avg_hit_speed"
-        if metric not in df.columns:
-            raise ValueError(f"Columna {metric} no encontrada")
-        player_col = [c for c in df.columns if 'name' in c or 'player' in c][0]
         df_clean = df.dropna(subset=[metric])
         df_sorted = df_clean.sort_values(metric, ascending=False)
         df_top = df_sorted.head(10)
         top_10 = []
         for idx, (_, row) in enumerate(df_top.iterrows(), 1):
             pct = (df_clean[metric] <= row[metric]).sum() / len(df_clean) * 100
-            name = str(row[player_col])
+            name = str(row['player'])
             top_10.append(RankingRecord(rank=idx, player_name=name, value=round(float(row[metric]), 2), percentile=round(pct, 1)))
         return RankingResponse(ranking_id="1", ranking_name="Exit Velocity", metric="avg_hit_speed", top_10=top_10, league_avg=round(df_clean[metric].mean(), 2), league_min=round(df_clean[metric].min(), 2), league_max=round(df_clean[metric].max(), 2), timestamp=datetime.now().isoformat())
     except Exception as e:
