@@ -658,6 +658,26 @@ async def get_ranking_1():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/debug/ranking1-raw", tags=["Debug"])
+async def debug_ranking1_raw():
+    """DEBUG: Returns raw first 3 rows of Exit Velocity sheet"""
+    try:
+        sheet_name = "Exit Velocity"
+        encoded = urllib.parse.quote(sheet_name)
+        url = f"https://docs.google.com/spreadsheets/d/{GOOGLE_SHEET_ID}/gviz/tq?tqx=out:csv&sheet={encoded}"
+        df = pd.read_csv(url)
+        logger.info(f"Raw columns: {df.columns.tolist()}")
+        logger.info(f"Raw first row: {df.iloc[0].to_dict() if len(df) > 0 else 'empty'}")
+        return {
+            "columns": df.columns.tolist(),
+            "first_3_rows": df.head(3).to_dict(orient='records'),
+            "total_rows": len(df),
+            "df_shape": df.shape
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(
