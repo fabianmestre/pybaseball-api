@@ -100,6 +100,7 @@ class RankingResponse(BaseModel):
     ranking_id: str
     ranking_name: str
     metric: str
+    description: str
     top_10: List[RankingRecord]
     league_avg: Optional[float] = None
     league_min: Optional[float] = None
@@ -642,7 +643,7 @@ async def get_ranking_1():
             pct = (df_clean[metric] <= row[metric]).sum() / len(df_clean) * 100
             name = str(row['player'])
             top_10.append(RankingRecord(rank=idx, player_name=name, value=round(float(row[metric]), 2), percentile=round(pct, 1)))
-        return RankingResponse(ranking_id="1", ranking_name="Exit Velocity", metric="avg_hit_speed", top_10=top_10, league_avg=round(df_clean[metric].mean(), 2), league_min=round(df_clean[metric].min(), 2), league_max=round(df_clean[metric].max(), 2), timestamp=datetime.now().isoformat())
+        return RankingResponse(ranking_id="1", ranking_name="Exit Velocity Promedio", metric="avg_hit_speed", description="Velocidad promedio de los golpes en mph. Mide la potencia general del bateador.", top_10=top_10, league_avg=round(df_clean[metric].mean(), 2), league_min=round(df_clean[metric].min(), 2), league_max=round(df_clean[metric].max(), 2), timestamp=datetime.now().isoformat())
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -658,6 +659,64 @@ async def get_ranking(ranking_id: str = Path(..., description="ID 1-29")):
     if df.empty:
         raise HTTPException(status_code=500, detail=f"Error: {sheet_name}")
     return generate_ranking(df, metric, ranking_id, sheet_name, 10, ascending)
+
+
+def generate_exit_velocity_ranking(metric: str, ranking_name: str, description: str, ascending: bool = False):
+    """Genera un ranking desde la hoja Exit Velocity"""
+    try:
+        sheet_name = "Exit Velocity"
+        encoded = urllib.parse.quote(sheet_name)
+        url = f"https://docs.google.com/spreadsheets/d/{GOOGLE_SHEET_ID}/gviz/tq?tqx=out:csv&sheet={encoded}"
+        df = pd.read_csv(url)
+        new_cols = ['player', 'player_id', 'attempts', 'avg_hit_angle', 'angle_sweet_spot', 'max_hit_speed', 'avg_hit_speed', 'ev50', 'fbld', 'gb', 'max_distance', 'avg_distance', 'avg_hr_distance', 'ev95plus', 'ev95percent', 'barrels', 'brl_percent', 'brl_pa', 'unnamed']
+        df.columns = new_cols
+        df_clean = df.dropna(subset=[metric])
+        df_sorted = df_clean.sort_values(metric, ascending=ascending)
+        df_top = df_sorted.head(10)
+        top_10 = []
+        for idx, (_, row) in enumerate(df_top.iterrows(), 1):
+            pct = (df_clean[metric] <= row[metric]).sum() / len(df_clean) * 100 if not ascending else (df_clean[metric] >= row[metric]).sum() / len(df_clean) * 100
+            name = str(row['player'])
+            top_10.append(RankingRecord(rank=idx, player_name=name, value=round(float(row[metric]), 2), percentile=round(pct, 1)))
+        return RankingResponse(ranking_id=metric, ranking_name=ranking_name, metric=metric, description=description, top_10=top_10, league_avg=round(df_clean[metric].mean(), 2), league_min=round(df_clean[metric].min(), 2), league_max=round(df_clean[metric].max(), 2), timestamp=datetime.now().isoformat())
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/rankings/exit-speed-max", response_model=RankingResponse, tags=["Rankings - Exit Velocity"])
+async def ranking_exit_speed_max():
+    """Top 10 por velocidad máxima de golpe"""
+    return generate_exit_velocity_ranking("max_hit_speed", "Velocidad Máxima de Golpe", "Velocidad máxima registrada del golpe en mph. Indica el pico de potencia del bateador.")
+
+
+@app.get("/rankings/hit-distance-avg", response_model=RankingResponse, tags=["Rankings - Exit Velocity"])
+async def ranking_hit_distance_avg():
+    """Top 10 por distancia promedio de golpes"""
+    return generate_exit_velocity_ranking("avg_distance", "Distancia Promedio de Golpes", "Distancia promedio en pies que viajan los golpes. Mide la capacidad de mandar lejos la bola.")
+
+
+@app.get("/rankings/hit-distance-max", response_model=RankingResponse, tags=["Rankings - Exit Velocity"])
+async def ranking_hit_distance_max():
+    """Top 10 por distancia máxima de golpe"""
+    return generate_exit_velocity_ranking("max_distance", "Distancia Máxima de Golpe", "Golpe más lejano registrado en pies. Muestra el potencial máximo del bateador.")
+
+
+@app.get("/rankings/barrels", response_model=RankingResponse, tags=["Rankings - Exit Velocity"])
+async def ranking_barrels():
+    """Top 10 por cantidad de barrels"""
+    return generate_exit_velocity_ranking("barrels", "Cantidad de Barrels", "Cantidad de 'barrels' (golpes óptimos según MLB). Un barrel es un contacto óptimo que resulta en alta probabilidad de éxito.")
+
+
+@app.get("/rankings/sweet-spot", response_model=RankingResponse, tags=["Rankings - Exit Velocity"])
+async def ranking_sweet_spot():
+    """Top 10 por porcentaje de golpes en sweet spot"""
+    return generate_exit_velocity_ranking("angle_sweet_spot", "% Golpes en Zona Óptima", "Porcentaje de golpes que hacen contacto en la zona óptima del bate. Mide consistencia y control.")
+
+
+@app.get("/rankings/power-consistency", response_model=RankingResponse, tags=["Rankings - Exit Velocity"])
+async def ranking_power_consistency():
+    """Top 10 por porcentaje de golpes con potencia (>95 mph)"""
+    return generate_exit_velocity_ranking("ev95percent", "% Golpes con Potencia (>95mph)", "Porcentaje de golpes con exit velocity mayor a 95 mph. Mide consistencia de potencia.")
 
 
 @app.get("/debug/ranking1-raw", tags=["Debug"])
