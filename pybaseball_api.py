@@ -666,16 +666,14 @@ async def debug_ranking1_raw():
         encoded = urllib.parse.quote(sheet_name)
         url = f"https://docs.google.com/spreadsheets/d/{GOOGLE_SHEET_ID}/gviz/tq?tqx=out:csv&sheet={encoded}"
         df = pd.read_csv(url)
-        logger.info(f"Raw columns: {df.columns.tolist()}")
-        logger.info(f"Raw first row: {df.iloc[0].to_dict() if len(df) > 0 else 'empty'}")
         return {
             "columns": df.columns.tolist(),
             "first_3_rows": df.head(3).to_dict(orient='records'),
-            "total_rows": len(df),
-            "df_shape": df.shape
+            "total_rows": int(len(df)),
+            "num_columns": int(len(df.columns))
         }
     except Exception as e:
-        return {"error": str(e)}
+        return {"error": str(e), "type": type(e).__name__}
 
 
 if __name__ == "__main__":
