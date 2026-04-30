@@ -643,7 +643,9 @@ async def get_ranking_1():
         encoded = urllib.parse.quote(sheet_name)
         url = f"https://docs.google.com/spreadsheets/d/{GOOGLE_SHEET_ID}/gviz/tq?tqx=out:csv&sheet={encoded}"
         df = pd.read_csv(url)
-        df.columns = ['player', 'player_id', 'attempts', 'avg_hit_angle', 'angle_sweet_spot', 'max_hit_speed', 'avg_hit_speed', 'ev50', 'fbld', 'gb', 'max_distance', 'avg_distance']
+        new_cols = ['player', 'player_id', 'attempts', 'avg_hit_angle', 'angle_sweet_spot', 'max_hit_speed', 'avg_hit_speed', 'ev50', 'fbld', 'gb', 'max_distance', 'avg_distance']
+        new_cols += [f'col_{i}' for i in range(len(new_cols), len(df.columns))]
+        df.columns = new_cols
         metric = "avg_hit_speed"
         df_clean = df.dropna(subset=[metric])
         df_sorted = df_clean.sort_values(metric, ascending=False)
@@ -666,9 +668,12 @@ async def debug_ranking1_raw():
         encoded = urllib.parse.quote(sheet_name)
         url = f"https://docs.google.com/spreadsheets/d/{GOOGLE_SHEET_ID}/gviz/tq?tqx=out:csv&sheet={encoded}"
         df = pd.read_csv(url)
+        new_cols = ['player', 'player_id', 'attempts', 'avg_hit_angle', 'angle_sweet_spot', 'max_hit_speed', 'avg_hit_speed', 'ev50', 'fbld', 'gb', 'max_distance', 'avg_distance']
+        new_cols += [f'col_{i}' for i in range(len(new_cols), len(df.columns))]
+        df.columns = new_cols
         return {
             "columns": df.columns.tolist(),
-            "first_3_rows": df.head(3).to_dict(orient='records'),
+            "first_3_rows": df[['player', 'avg_hit_speed']].head(3).to_dict(orient='records'),
             "total_rows": int(len(df)),
             "num_columns": int(len(df.columns))
         }
