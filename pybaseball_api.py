@@ -567,50 +567,6 @@ logger = logging.getLogger(__name__)
 GOOGLE_SHEET_ID = "1O9vFxcntbHRa5EUGL-b3yyMwICc2GNSdvwYPLEaTPro"
 
 
-def read_sheet_data(sheet_name: str) -> pd.DataFrame:
-    """Lee datos de una pestaña de Google Sheets como CSV"""
-    try:
-        encoded_name = urllib.parse.quote(sheet_name)
-        url = f"https://docs.google.com/spreadsheets/d/{GOOGLE_SHEET_ID}/gviz/tq?tqx=out:csv&sheet={encoded_name}"
-        logger.info(f"Leyendo: {sheet_name}")
-        df = pd.read_csv(url)
-        if df.empty:
-            logger.warning(f"Sheet {sheet_name} vacío")
-            return pd.DataFrame()
-        logger.info(f"✓ {sheet_name}: {len(df)} filas")
-        return df
-    except Exception as e:
-        logger.error(f"Error leyendo {sheet_name}: {str(e)}")
-        return pd.DataFrame()
-
-
-def generate_ranking(df: pd.DataFrame, metric_col: str, ranking_id: str, ranking_name: str, top_n: int = 10, ascending: bool = False) -> RankingResponse:
-    """Genera un ranking desde datos del dataframe"""
-    try:
-        if metric_col not in df.columns:
-            raise ValueError(f"Columna {metric_col} no existe")
-        df_clean = df.dropna(subset=[metric_col])
-        if df_clean.empty:
-            raise ValueError(f"Sin datos para {ranking_name}")
-        df_sorted = df_clean.sort_values(metric_col, ascending=ascending)
-        df_top = df_sorted.head(top_n)
-        league_avg = df_clean[metric_col].mean()
-        league_min = df_clean[metric_col].min()
-        league_max = df_clean[metric_col].max()
-        top_10_records = []
-        for idx, (_, row) in enumerate(df_top.iterrows(), 1):
-            percentile = (df_clean[metric_col] <= row[metric_col]).sum() / len(df_clean) * 100
-            if 'last_name' in row and 'first_name' in row:
-                player_name = f"{row['last_name']}, {row['first_name']}"
-            elif 'player_name' in row:
-                player_name = str(row['player_name'])
-            else:
-                player_name = "Unknown"
-            top_10_records.append(RankingRecord(rank=idx, player_name=player_name, value=round(float(row[metric_col]), 2), percentile=round(percentile, 1)))
-        return RankingResponse(ranking_id=ranking_id, ranking_name=ranking_name, metric=metric_col, top_10=top_10_records, league_avg=round(league_avg, 2) if pd.notna(league_avg) else None, league_min=round(league_min, 2) if pd.notna(league_min) else None, league_max=round(league_max, 2) if pd.notna(league_max) else None, timestamp=datetime.now().isoformat())
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
 
 # ============================================================================
 # ENDPOINTS - RANKINGS (29 RANKINGS DESDE GOOGLE SHEETS)
@@ -646,19 +602,6 @@ async def get_ranking_1():
         return RankingResponse(ranking_id="1", ranking_name="Exit Velocity Promedio", metric="avg_hit_speed", description="Velocidad promedio de los golpes en mph. Mide la potencia general del bateador.", top_10=top_10, league_avg=round(df_clean[metric].mean(), 2), league_min=round(df_clean[metric].min(), 2), league_max=round(df_clean[metric].max(), 2), timestamp=datetime.now().isoformat())
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.get("/rankings/{ranking_id}", response_model=RankingResponse, tags=["Rankings"])
-async def get_ranking(ranking_id: str = Path(..., description="ID 1-29")):
-    """Obtiene un ranking por ID"""
-    rankings_map = {"1": ("Exit Velocity", "avg_hit_speed", False), "2": ("Expected Stats", "est_woba", False), "3": ("Home Runs", "xhr", False), "4": ("Percentiles", "xwoba", False), "5": ("Batting Run Value", "runs_all", False), "6": ("Swing Path", "avg_bat_speed", False), "7": ("Bat Tracking", "hard_swing_rate", False), "8": ("Batting Stance", "avg_foot_sep", False), "9": ("Batted Ball", "fb_rate", False), "10": ("Pitch Arsenal Stats", "run_value_per_100", False), "11": ("Pitch Tempo", "median_seconds_empty", True), "12": ("cat-Catcher Framing", "rv_tot", False), "13": ("cat-Pop Time", "pop_2b_sba", True), "14": ("cat-Catcher Blocking", "catcher_blocking_runs", False), "15": ("cat-Catcher Stance", "one_knee_framing_rv", False), "16": ("cat-Catcher Throwing", "rate_cs", False), "17": ("run-Sprint Speed", "sprint_speed", False), "18": ("run-Baserunning Run Value", "runner_runs_tot", False), "19": ("run-Basestealing Run Value", "runs_stolen_on_running_act", False), "20": ("run-Extra Bases Taken", "runner_runs", False), "21": ("run-90ft Running Splits", "seconds_since_hit_090", True), "22": ("fld-Fielding Run Value", "total_runs", False), "23": ("fld-Arm Strength", "max_arm_strength", False), "24": ("fld-Arm Value", "fielder_runs", False), "25": ("fld-Outfield Catch Prob", "oaa", False), "26": ("fld-Outfield Dir OAA", "n_outs_above_average", False), "27": ("fld-Outfielder Jump", "outs_above_average", False), "28": ("fld-Outs Above Average", "outs_above_average", False), "29": ("Year to Year Changes", "delta_2025_2026", False)}
-    if ranking_id not in rankings_map:
-        raise HTTPException(status_code=404, detail="Ranking no encontrado")
-    sheet_name, metric, ascending = rankings_map[ranking_id]
-    df = read_sheet_data(sheet_name)
-    if df.empty:
-        raise HTTPException(status_code=500, detail=f"Error: {sheet_name}")
-    return generate_ranking(df, metric, ranking_id, sheet_name, 10, ascending)
 
 
 def generate_exit_velocity_ranking(metric: str, ranking_name: str, description: str, ascending: bool = False):
