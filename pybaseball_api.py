@@ -650,7 +650,7 @@ async def get_ranking_1():
         df_sorted = df_clean.sort_values(metric, ascending=False)
         df_top = df_sorted.head(10)
         top_10 = []
-        names = df_top['player'].tolist() if 'player' in df_top.columns else [f"Player {i}" for i in range(1, 11)]
+        names = df_top['last_name, first_name'].tolist()
         values = df_top[metric].tolist()
         for idx, (name, value) in enumerate(zip(names, values), 1):
             pct = (df_clean[metric] <= value).sum() / len(df_clean) * 100
