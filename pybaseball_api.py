@@ -1047,6 +1047,116 @@ async def ranking_swing_length():
     return generate_bat_tracking_ranking("swing_length", "Largo del Swing", "Distancia recorrida por el bate durante el swing. Mide la extensión y rango del movimiento.")
 
 
+# ============================================================================
+# RUTAS - BATTED BALL
+# ============================================================================
+
+@app.get("/debug/batted-ball-raw", tags=["Debug"])
+async def debug_batted_ball_raw():
+    """DEBUG: Ver estructura de Batted Ball sheet"""
+    try:
+        sheet_name = "Batted Ball"
+        encoded = urllib.parse.quote(sheet_name)
+        url = f"https://docs.google.com/spreadsheets/d/{GOOGLE_SHEET_ID}/gviz/tq?tqx=out:csv&sheet={encoded}"
+        df = pd.read_csv(url)
+        return {
+            "columns": df.columns.tolist(),
+            "first_2_rows": df.head(2).to_dict(orient='records'),
+            "total_rows": int(len(df)),
+            "num_columns": int(len(df.columns))
+        }
+    except Exception as e:
+        return {"error": str(e), "type": type(e).__name__}
+
+
+def generate_batted_ball_ranking(metric: str, ranking_name: str, description: str, ascending: bool = False):
+    """Genera un ranking desde la hoja Batted Ball"""
+    try:
+        sheet_name = "Batted Ball"
+        encoded = urllib.parse.quote(sheet_name)
+        url = f"https://docs.google.com/spreadsheets/d/{GOOGLE_SHEET_ID}/gviz/tq?tqx=out:csv&sheet={encoded}"
+        df = pd.read_csv(url)
+
+        # Renombrar columnas según estructura: id, name, bbe, gb_rate, air_rate, fb_rate, ld_rate, pu_rate, pull_rate, straight_rate, oppo_rate, pull_gb_rate, straight_gb_rate, oppo_gb_rate, pull_air_rate, straight_air_rate, oppo_air_rate
+        new_cols = ['id', 'name', 'bbe', 'gb_rate', 'air_rate', 'fb_rate', 'ld_rate', 'pu_rate', 'pull_rate', 'straight_rate', 'oppo_rate', 'pull_gb_rate', 'straight_gb_rate', 'oppo_gb_rate', 'pull_air_rate', 'straight_air_rate', 'oppo_air_rate']
+        new_cols += [f'col_{i}' for i in range(len(new_cols), len(df.columns))]
+        df.columns = new_cols
+
+        df_clean = df.dropna(subset=[metric]).copy()
+        df_clean[metric] = pd.to_numeric(df_clean[metric], errors='coerce')
+        df_clean = df_clean.dropna(subset=[metric])
+
+        df_sorted = df_clean.sort_values(by=metric, ascending=ascending)
+        top_10 = []
+        for rank, (_, row) in enumerate(df_sorted.head(10).iterrows(), 1):
+            value = round(float(row[metric]), 2) if pd.notna(row[metric]) else None
+            player_name = str(row['name'])
+            top_10.append(RankingRecord(
+                rank=rank,
+                player_name=player_name,
+                value=value,
+                percentile=round(((len(df_clean) - rank) / len(df_clean)) * 100, 1)
+            ))
+
+        return RankingResponse(ranking_id=ranking_name.replace(" ", "-"), ranking_name=ranking_name, metric=metric, description=description, top_10=top_10, league_avg=round(df_clean[metric].mean(), 2), league_min=round(df_clean[metric].min(), 2), league_max=round(df_clean[metric].max(), 2), timestamp=datetime.now().isoformat())
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/rankings/fly-ball-rate", response_model=RankingResponse, tags=["Rankings - Batted Ball"])
+async def ranking_fly_ball_rate():
+    """Top 10 por porcentaje de fly balls"""
+    return generate_batted_ball_ranking("fb_rate", "% Fly Balls", "Porcentaje de bolas bateadas que son fly balls. Mayor porcentaje indica tendencia a golpear elevado.")
+
+
+@app.get("/rankings/ground-ball-rate", response_model=RankingResponse, tags=["Rankings - Batted Ball"])
+async def ranking_ground_ball_rate():
+    """Top 10 por porcentaje de ground balls"""
+    return generate_batted_ball_ranking("gb_rate", "% Ground Balls", "Porcentaje de bolas bateadas que son ground balls. Mide tendencia a golpear rasante.")
+
+
+@app.get("/rankings/line-drive-rate", response_model=RankingResponse, tags=["Rankings - Batted Ball"])
+async def ranking_line_drive_rate():
+    """Top 10 por porcentaje de line drives"""
+    return generate_batted_ball_ranking("ld_rate", "% Line Drives", "Porcentaje de bolas bateadas que son line drives. Line drives son los más efectivos (altos promedios de batting).")
+
+
+@app.get("/rankings/air-rate", response_model=RankingResponse, tags=["Rankings - Batted Ball"])
+async def ranking_air_rate():
+    """Top 10 por porcentaje de bolas aéreas"""
+    return generate_batted_ball_ranking("air_rate", "% Bolas Aéreas (FB+LD)", "Porcentaje de bolas aéreas (fly balls + line drives). Mayor air rate = más potencial de extra-base hits.")
+
+
+@app.get("/rankings/pull-rate", response_model=RankingResponse, tags=["Rankings - Batted Ball"])
+async def ranking_pull_rate():
+    """Top 10 por porcentaje de bolas al lado pull"""
+    return generate_batted_ball_ranking("pull_rate", "% Pull Side", "Porcentaje de bolas bateadas al lado pull. Mide tendencia de lateralidad.")
+
+
+@app.get("/rankings/opposite-field-rate", response_model=RankingResponse, tags=["Rankings - Batted Ball"])
+async def ranking_opposite_field_rate():
+    """Top 10 por porcentaje de bolas al campo opuesto"""
+    return generate_batted_ball_ranking("oppo_rate", "% Campo Opuesto", "Porcentaje de bolas bateadas al campo opuesto. Indica versatilidad ofensiva.")
+
+
+@app.get("/rankings/straight-center-rate", response_model=RankingResponse, tags=["Rankings - Batted Ball"])
+async def ranking_straight_center_rate():
+    """Top 10 por porcentaje de bolas al centro"""
+    return generate_batted_ball_ranking("straight_rate", "% Centro", "Porcentaje de bolas bateadas hacia el centro del campo.")
+
+
+@app.get("/rankings/batted-ball-events", response_model=RankingResponse, tags=["Rankings - Batted Ball"])
+async def ranking_batted_ball_events():
+    """Top 10 por cantidad de eventos de bolas bateadas"""
+    return generate_batted_ball_ranking("bbe", "Eventos de Bolas Bateadas", "Total de bolas bateadas en juego. Indica volumen ofensivo.")
+
+
+@app.get("/rankings/pull-fly-ball-rate", response_model=RankingResponse, tags=["Rankings - Batted Ball"])
+async def ranking_pull_fly_ball_rate():
+    """Top 10 por porcentaje de fly balls al pull"""
+    return generate_batted_ball_ranking("pull_air_rate", "% Aéreas al Pull", "Porcentaje de bolas aéreas (FB+LD) bateadas al side pull. Indica poder al lado preferido.")
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(
