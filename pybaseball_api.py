@@ -662,6 +662,54 @@ async def ranking_power_consistency():
     return generate_exit_velocity_ranking("ev95percent", "% Golpes con Potencia (>95mph)", "Porcentaje de golpes con exit velocity mayor a 95 mph. Mide consistencia de potencia.")
 
 
+@app.get("/rankings/ev-median", response_model=RankingResponse, tags=["Rankings - Exit Velocity"])
+async def ranking_ev_median():
+    """Top 10 por exit velocity mediana"""
+    return generate_exit_velocity_ranking("ev50", "Exit Velocity Mediana (EV50)", "Exit velocity en el percentil 50 de todos los golpes. Mide el valor medio de potencia.")
+
+
+@app.get("/rankings/power-threshold-count", response_model=RankingResponse, tags=["Rankings - Exit Velocity"])
+async def ranking_power_threshold_count():
+    """Top 10 por cantidad de golpes > 95 mph"""
+    return generate_exit_velocity_ranking("ev95plus", "Golpes con Potencia (>95mph)", "Cantidad total de golpes con exit velocity superior a 95 mph. Mide frecuencia de potencia.")
+
+
+@app.get("/rankings/homerun-distance-avg", response_model=RankingResponse, tags=["Rankings - Exit Velocity"])
+async def ranking_homerun_distance_avg():
+    """Top 10 por distancia promedio de home runs"""
+    return generate_exit_velocity_ranking("avg_hr_distance", "Distancia Promedio Home Runs", "Distancia promedio en pies de los home runs bateados. Mide potencia en hits más efectivos.")
+
+
+@app.get("/rankings/barrel-percentage", response_model=RankingResponse, tags=["Rankings - Exit Velocity"])
+async def ranking_barrel_percentage():
+    """Top 10 por porcentaje de barrels"""
+    return generate_exit_velocity_ranking("brl_percent", "% Barrels", "Porcentaje de golpes que son barrels. Mide calidad del contacto respecto al total de golpes.")
+
+
+@app.get("/rankings/barrel-pa", response_model=RankingResponse, tags=["Rankings - Exit Velocity"])
+async def ranking_barrel_pa():
+    """Top 10 por barrels por plate appearance"""
+    return generate_exit_velocity_ranking("brl_pa", "Barrels por Aparición", "Promedio de barrels por plate appearance. Mide eficiencia de golpes de calidad.")
+
+
+@app.get("/rankings/flyball-velocity", response_model=RankingResponse, tags=["Rankings - Exit Velocity"])
+async def ranking_flyball_velocity():
+    """Top 10 por velocidad fly ball/line drive"""
+    return generate_exit_velocity_ranking("fbld", "Velocidad Fly Ball/Line Drive", "Exit velocity promedio en fly balls y line drives. Mide potencia en hits elevados.")
+
+
+@app.get("/rankings/groundball-velocity", response_model=RankingResponse, tags=["Rankings - Exit Velocity"])
+async def ranking_groundball_velocity():
+    """Top 10 por velocidad ground ball"""
+    return generate_exit_velocity_ranking("gb", "Velocidad Ground Ball", "Exit velocity promedio en ground balls. Mide velocidad de golpes rasantes.")
+
+
+@app.get("/rankings/hit-angle", response_model=RankingResponse, tags=["Rankings - Exit Velocity"])
+async def ranking_hit_angle():
+    """Top 10 por ángulo promedio de golpe"""
+    return generate_exit_velocity_ranking("avg_hit_angle", "Ángulo Promedio de Golpe", "Ángulo promedio en grados de los golpes. Ángulos óptimos (15-35°) favorecen distancia.")
+
+
 @app.get("/debug/ranking1-raw", tags=["Debug"])
 async def debug_ranking1_raw():
     """DEBUG: Returns raw first 3 rows of Exit Velocity sheet"""
