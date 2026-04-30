@@ -743,8 +743,8 @@ def generate_expected_stats_ranking(metric: str, ranking_name: str, description:
         url = f"https://docs.google.com/spreadsheets/d/{GOOGLE_SHEET_ID}/gviz/tq?tqx=out:csv&sheet={encoded}"
         df = pd.read_csv(url)
 
-        # Renombrar columnas a nombres simples - primeras columnas conocidas
-        new_cols = ['player', 'player_id', 'plate_appearances', 'avg_ev', 'ev90_plus', 'ev95_plus', 'barrel_pct', 'sweet_spot_pct', 'hard_hit_pct', 'xba', 'xslg', 'xobp', 'xwoba']
+        # Renombrar columnas según estructura real: last_name, first, player_id, year, pa, bip, ba, est_ba, est_ba_minus_b, slg, est_slg, est_slg_minus_s, woba, est_woba, est_woba_minus_woba_diff, col_o
+        new_cols = ['last_name', 'first', 'player_id', 'year', 'pa', 'bip', 'ba', 'est_ba', 'est_ba_minus_b', 'slg', 'est_slg', 'est_slg_minus_s', 'woba', 'est_woba', 'est_woba_minus_woba_diff']
         new_cols += [f'col_{i}' for i in range(len(new_cols), len(df.columns))]
         df.columns = new_cols
 
@@ -756,9 +756,10 @@ def generate_expected_stats_ranking(metric: str, ranking_name: str, description:
         top_10 = []
         for rank, (_, row) in enumerate(df_sorted.head(10).iterrows(), 1):
             value = round(float(row[metric]), 2) if pd.notna(row[metric]) else None
+            player_name = f"{row['last_name']}, {row['first']}" if pd.notna(row['last_name']) and pd.notna(row['first']) else str(row.get('last_name', row.get('first', '')))
             top_10.append(RankingRecord(
                 rank=rank,
-                player_name=str(row['player']),
+                player_name=player_name,
                 value=value,
                 percentile=round(((len(df_clean) - rank) / len(df_clean)) * 100, 1)
             ))
@@ -789,13 +790,13 @@ async def debug_expected_stats_raw():
 @app.get("/rankings/expected-batting-average", response_model=RankingResponse, tags=["Rankings - Expected Stats"])
 async def ranking_expected_batting_average():
     """Top 10 por xBA (Expected Batting Average)"""
-    return generate_expected_stats_ranking("xba", "Expected Batting Average (xBA)", "Promedio de bateo esperado basado en calidad de contacto. xBA predice mejor desempeño que BA actual.")
+    return generate_expected_stats_ranking("est_ba", "Expected Batting Average (xBA)", "Promedio de bateo esperado basado en calidad de contacto. xBA predice mejor desempeño que BA actual.")
 
 
 @app.get("/rankings/expected-slugging", response_model=RankingResponse, tags=["Rankings - Expected Stats"])
 async def ranking_expected_slugging():
     """Top 10 por xSLG (Expected Slugging)"""
-    return generate_expected_stats_ranking("xslg", "Expected Slugging (xSLG)", "Slugging esperado basado en bolas puestas en juego. Indicador predictivo de poder.", ascending=False)
+    return generate_expected_stats_ranking("est_slg", "Expected Slugging (xSLG)", "Slugging esperado basado en bolas puestas en juego. Indicador predictivo de poder.", ascending=False)
 
 
 @app.get("/rankings/expected-obp", response_model=RankingResponse, tags=["Rankings - Expected Stats"])
@@ -807,7 +808,7 @@ async def ranking_expected_obp():
 @app.get("/rankings/expected-woba", response_model=RankingResponse, tags=["Rankings - Expected Stats"])
 async def ranking_expected_woba():
     """Top 10 por xwOBA (Expected Weighted On-Base Average)"""
-    return generate_expected_stats_ranking("xwoba", "Expected wOBA (xwOBA)", "wOBA esperado basado en la calidad de los golpes. Mejor predictor que wOBA actual.")
+    return generate_expected_stats_ranking("est_woba", "Expected wOBA (xwOBA)", "wOBA esperado basado en la calidad de los golpes. Mejor predictor que wOBA actual.")
 
 
 if __name__ == "__main__":
