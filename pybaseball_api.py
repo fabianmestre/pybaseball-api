@@ -811,6 +811,62 @@ async def ranking_expected_woba():
     return generate_expected_stats_ranking("est_woba", "Expected wOBA (xwOBA)", "wOBA esperado basado en la calidad de los golpes. Mejor predictor que wOBA actual.")
 
 
+# ============================================================================
+# RUTAS - HOME RUNS (RANKINGS)
+# ============================================================================
+
+@app.get("/debug/home-runs-raw", tags=["Debug"])
+async def debug_home_runs_raw():
+    """DEBUG: Ver estructura de Home Runs sheet"""
+    try:
+        sheet_name = "Home Runs"
+        encoded = urllib.parse.quote(sheet_name)
+        url = f"https://docs.google.com/spreadsheets/d/{GOOGLE_SHEET_ID}/gviz/tq?tqx=out:csv&sheet={encoded}"
+        df = pd.read_csv(url)
+        return {
+            "columns": df.columns.tolist(),
+            "first_2_rows": df.head(2).to_dict(orient='records'),
+            "total_rows": int(len(df)),
+            "num_columns": int(len(df.columns))
+        }
+    except Exception as e:
+        return {"error": str(e), "type": type(e).__name__}
+
+
+def generate_home_runs_ranking(metric: str, ranking_name: str, description: str, ascending: bool = False):
+    """Genera un ranking desde la hoja Home Runs"""
+    try:
+        sheet_name = "Home Runs"
+        encoded = urllib.parse.quote(sheet_name)
+        url = f"https://docs.google.com/spreadsheets/d/{GOOGLE_SHEET_ID}/gviz/tq?tqx=out:csv&sheet={encoded}"
+        df = pd.read_csv(url)
+
+        # Será actualizado una vez que veamos la estructura real
+        # Por ahora usamos mapeo genérico
+        new_cols = [f'col_{i}' for i in range(len(df.columns))]
+        df.columns = new_cols
+
+        df_clean = df.dropna(subset=[metric]).copy()
+        df_clean[metric] = pd.to_numeric(df_clean[metric], errors='coerce')
+        df_clean = df_clean.dropna(subset=[metric])
+
+        df_sorted = df_clean.sort_values(by=metric, ascending=ascending)
+        top_10 = []
+        for rank, (_, row) in enumerate(df_sorted.head(10).iterrows(), 1):
+            value = round(float(row[metric]), 2) if pd.notna(row[metric]) else None
+            player_name = str(row.get('col_0', f'Player {rank}'))
+            top_10.append(RankingRecord(
+                rank=rank,
+                player_name=player_name,
+                value=value,
+                percentile=round(((len(df_clean) - rank) / len(df_clean)) * 100, 1)
+            ))
+
+        return RankingResponse(ranking_id=ranking_name.replace(" ", "-"), ranking_name=ranking_name, metric=metric, description=description, top_10=top_10, league_avg=round(df_clean[metric].mean(), 2), league_min=round(df_clean[metric].min(), 2), league_max=round(df_clean[metric].max(), 2), timestamp=datetime.now().isoformat())
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(
