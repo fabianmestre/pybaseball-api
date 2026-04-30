@@ -741,6 +741,128 @@ async def ranking_home_run_efficiency():
     return generate_home_runs_ranking("xhr_diff", "Home Run Efficiency (HR vs xHR)", "Diferencia entre home runs actual y esperado. Positivo = bateador sobreperfoma; negativo = subperfoma.")
 
 
+# ============================================================================
+# RUTAS - PERCENTILES
+# ============================================================================
+
+@app.get("/debug/percentiles-raw", tags=["Debug"])
+async def debug_percentiles_raw():
+    """DEBUG: Ver estructura de Percentiles sheet"""
+    try:
+        sheet_name = "Percentiles"
+        encoded = urllib.parse.quote(sheet_name)
+        url = f"https://docs.google.com/spreadsheets/d/{GOOGLE_SHEET_ID}/gviz/tq?tqx=out:csv&sheet={encoded}"
+        df = pd.read_csv(url)
+        return {
+            "columns": df.columns.tolist(),
+            "first_2_rows": df.head(2).to_dict(orient='records'),
+            "total_rows": int(len(df)),
+            "num_columns": int(len(df.columns))
+        }
+    except Exception as e:
+        return {"error": str(e), "type": type(e).__name__}
+
+
+def generate_percentiles_ranking(metric: str, ranking_name: str, description: str, ascending: bool = False):
+    """Genera un ranking desde la hoja Percentiles"""
+    try:
+        sheet_name = "Percentiles"
+        encoded = urllib.parse.quote(sheet_name)
+        url = f"https://docs.google.com/spreadsheets/d/{GOOGLE_SHEET_ID}/gviz/tq?tqx=out:csv&sheet={encoded}"
+        df = pd.read_csv(url)
+
+        # Renombrar columnas según estructura: player_name, player_id, year, xwoba, xba, xslg, xiso, xobp, brl, brl_percent, exit_velocity, max_ev, hard_hit_percent, k_percent, bb_percent, whiff_percent, chase_percent, arm_strength, sprint_speed, oaa, bat_speed, squared_up_rate, swing_length
+        new_cols = ['player_name', 'player_id', 'year', 'xwoba', 'xba', 'xslg', 'xiso', 'xobp', 'brl', 'brl_percent', 'exit_velocity', 'max_ev', 'hard_hit_percent', 'k_percent', 'bb_percent', 'whiff_percent', 'chase_percent', 'arm_strength', 'sprint_speed', 'oaa', 'bat_speed', 'squared_up_rate', 'swing_length']
+        new_cols += [f'col_{i}' for i in range(len(new_cols), len(df.columns))]
+        df.columns = new_cols
+
+        df_clean = df.dropna(subset=[metric]).copy()
+        df_clean[metric] = pd.to_numeric(df_clean[metric], errors='coerce')
+        df_clean = df_clean.dropna(subset=[metric])
+
+        df_sorted = df_clean.sort_values(by=metric, ascending=ascending)
+        top_10 = []
+        for rank, (_, row) in enumerate(df_sorted.head(10).iterrows(), 1):
+            value = round(float(row[metric]), 2) if pd.notna(row[metric]) else None
+            player_name = str(row['player_name'])
+            top_10.append(RankingRecord(
+                rank=rank,
+                player_name=player_name,
+                value=value,
+                percentile=round(((len(df_clean) - rank) / len(df_clean)) * 100, 1)
+            ))
+
+        return RankingResponse(ranking_id=ranking_name.replace(" ", "-"), ranking_name=ranking_name, metric=metric, description=description, top_10=top_10, league_avg=round(df_clean[metric].mean(), 2), league_min=round(df_clean[metric].min(), 2), league_max=round(df_clean[metric].max(), 2), timestamp=datetime.now().isoformat())
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/rankings/xwoba-percentile", response_model=RankingResponse, tags=["Rankings - Percentiles"])
+async def ranking_xwoba_percentile():
+    """Top 10 por xwOBA percentile"""
+    return generate_percentiles_ranking("xwoba", "xwOBA Percentile", "Percentil de xwOBA. Mide el lugar que ocupa un bateador respecto a la liga en valor ofensivo esperado.")
+
+
+@app.get("/rankings/exit-velocity-percentile", response_model=RankingResponse, tags=["Rankings - Percentiles"])
+async def ranking_exit_velocity_percentile():
+    """Top 10 por exit velocity percentile"""
+    return generate_percentiles_ranking("exit_velocity", "Exit Velocity Percentile", "Percentil de velocidad de salida. Jugadores en altos percentiles poseen más potencia bruta.")
+
+
+@app.get("/rankings/hard-hit-percentile", response_model=RankingResponse, tags=["Rankings - Percentiles"])
+async def ranking_hard_hit_percentile():
+    """Top 10 por hard hit percent percentile"""
+    return generate_percentiles_ranking("hard_hit_percent", "Hard Hit % Percentile", "Percentil de porcentaje de golpes duros (exit velocity > 95 mph). Indica consistencia de potencia.")
+
+
+@app.get("/rankings/sprint-speed-percentile", response_model=RankingResponse, tags=["Rankings - Percentiles"])
+async def ranking_sprint_speed_percentile():
+    """Top 10 por sprint speed percentile"""
+    return generate_percentiles_ranking("sprint_speed", "Sprint Speed Percentile", "Percentil de velocidad de carrera. Atletas con altos percentiles tienen mejor velocidad base.")
+
+
+@app.get("/rankings/arm-strength-percentile", response_model=RankingResponse, tags=["Rankings - Percentiles"])
+async def ranking_arm_strength_percentile():
+    """Top 10 por arm strength percentile"""
+    return generate_percentiles_ranking("arm_strength", "Arm Strength Percentile", "Percentil de fuerza de brazo. Importante para defensores en la parte externa del campo.")
+
+
+@app.get("/rankings/bat-speed-percentile", response_model=RankingResponse, tags=["Rankings - Percentiles"])
+async def ranking_bat_speed_percentile():
+    """Top 10 por bat speed percentile"""
+    return generate_percentiles_ranking("bat_speed", "Bat Speed Percentile", "Percentil de velocidad del bate. Mayor velocidad correlaciona con más potencia potencial.")
+
+
+@app.get("/rankings/whiff-percentile", response_model=RankingResponse, tags=["Rankings - Percentiles"])
+async def ranking_whiff_percentile():
+    """Top 10 por whiff percent percentile (orden ascendente)"""
+    return generate_percentiles_ranking("whiff_percent", "Whiff % Percentile (Bajo es Mejor)", "Percentil de porcentaje de swings fallidos. Bajos percentiles indican mejor selectividad.", ascending=True)
+
+
+@app.get("/rankings/walk-percentile", response_model=RankingResponse, tags=["Rankings - Percentiles"])
+async def ranking_walk_percentile():
+    """Top 10 por bb (walk) percent percentile"""
+    return generate_percentiles_ranking("bb_percent", "Walk % Percentile", "Percentil de porcentaje de bases por bolas. Altos percentiles indican disciplina ofensiva.")
+
+
+@app.get("/rankings/strikeout-percentile", response_model=RankingResponse, tags=["Rankings - Percentiles"])
+async def ranking_strikeout_percentile():
+    """Top 10 por k percent percentile (orden ascendente)"""
+    return generate_percentiles_ranking("k_percent", "Strikeout % Percentile (Bajo es Mejor)", "Percentil de porcentaje de strikeouts. Bajos percentiles = mejor contacto.", ascending=True)
+
+
+@app.get("/rankings/barrel-percentile", response_model=RankingResponse, tags=["Rankings - Percentiles"])
+async def ranking_barrel_percentile():
+    """Top 10 por barrel percentile"""
+    return generate_percentiles_ranking("brl", "Barrel Percentile", "Percentil de barrels. Mide la cantidad de contactos óptimos según estándares MLB.")
+
+
+@app.get("/rankings/outs-above-average-percentile", response_model=RankingResponse, tags=["Rankings - Percentiles"])
+async def ranking_oaa_percentile():
+    """Top 10 por OAA (Outs Above Average) percentile"""
+    return generate_percentiles_ranking("oaa", "Outs Above Average Percentile", "Percentil de OAA. Mide valor defensivo comparado con promedio de su posición.")
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(
