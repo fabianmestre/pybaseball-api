@@ -943,6 +943,110 @@ async def ranking_competitive_swings():
     return generate_swing_path_ranking("competitive_swings", "Swings Competitivos", "Cantidad de swings competitivos. Mide disciplina y selectividad en zona de strike.")
 
 
+# ============================================================================
+# RUTAS - BAT TRACKING
+# ============================================================================
+
+@app.get("/debug/bat-tracking-raw", tags=["Debug"])
+async def debug_bat_tracking_raw():
+    """DEBUG: Ver estructura de Bat Tracking sheet"""
+    try:
+        sheet_name = "Bat Tracking"
+        encoded = urllib.parse.quote(sheet_name)
+        url = f"https://docs.google.com/spreadsheets/d/{GOOGLE_SHEET_ID}/gviz/tq?tqx=out:csv&sheet={encoded}"
+        df = pd.read_csv(url)
+        return {
+            "columns": df.columns.tolist(),
+            "first_2_rows": df.head(2).to_dict(orient='records'),
+            "total_rows": int(len(df)),
+            "num_columns": int(len(df.columns))
+        }
+    except Exception as e:
+        return {"error": str(e), "type": type(e).__name__}
+
+
+def generate_bat_tracking_ranking(metric: str, ranking_name: str, description: str, ascending: bool = False):
+    """Genera un ranking desde la hoja Bat Tracking"""
+    try:
+        sheet_name = "Bat Tracking"
+        encoded = urllib.parse.quote(sheet_name)
+        url = f"https://docs.google.com/spreadsheets/d/{GOOGLE_SHEET_ID}/gviz/tq?tqx=out:csv&sheet={encoded}"
+        df = pd.read_csv(url)
+
+        # Renombrar columnas según estructura
+        new_cols = ['id', 'name', 'swings_competitive', 'percent_swings_competitive', 'contact', 'avg_bat_speed', 'hard_swing_rate', 'squared_up_per_bat_contact', 'squared_up_per_swing', 'blast_per_bat_contact', 'blast_per_swing', 'swing_length', 'swords', 'batter_run_value', 'whiffs', 'whiff_per_swing', 'batted_ball_events', 'batted_ball_event_per_swing']
+        new_cols += [f'col_{i}' for i in range(len(new_cols), len(df.columns))]
+        df.columns = new_cols
+
+        df_clean = df.dropna(subset=[metric]).copy()
+        df_clean[metric] = pd.to_numeric(df_clean[metric], errors='coerce')
+        df_clean = df_clean.dropna(subset=[metric])
+
+        df_sorted = df_clean.sort_values(by=metric, ascending=ascending)
+        top_10 = []
+        for rank, (_, row) in enumerate(df_sorted.head(10).iterrows(), 1):
+            value = round(float(row[metric]), 2) if pd.notna(row[metric]) else None
+            player_name = str(row['name'])
+            top_10.append(RankingRecord(
+                rank=rank,
+                player_name=player_name,
+                value=value,
+                percentile=round(((len(df_clean) - rank) / len(df_clean)) * 100, 1)
+            ))
+
+        return RankingResponse(ranking_id=ranking_name.replace(" ", "-"), ranking_name=ranking_name, metric=metric, description=description, top_10=top_10, league_avg=round(df_clean[metric].mean(), 2), league_min=round(df_clean[metric].min(), 2), league_max=round(df_clean[metric].max(), 2), timestamp=datetime.now().isoformat())
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/rankings/bat-speed", response_model=RankingResponse, tags=["Rankings - Bat Tracking"])
+async def ranking_bat_speed():
+    """Top 10 por velocidad promedio del bate"""
+    return generate_bat_tracking_ranking("avg_bat_speed", "Velocidad Promedio del Bate", "Velocidad promedio del bate en mph durante swings. Correlaciona con poder ofensivo.")
+
+
+@app.get("/rankings/hard-swing-rate", response_model=RankingResponse, tags=["Rankings - Bat Tracking"])
+async def ranking_hard_swing_rate():
+    """Top 10 por porcentaje de swings fuertes"""
+    return generate_bat_tracking_ranking("hard_swing_rate", "% Swings Fuertes", "Porcentaje de swings donde el bateador aplica máximo esfuerzo. Mide agresividad.")
+
+
+@app.get("/rankings/squared-up-contact", response_model=RankingResponse, tags=["Rankings - Bat Tracking"])
+async def ranking_squared_up_contact():
+    """Top 10 por porcentaje de contactos squared up"""
+    return generate_bat_tracking_ranking("squared_up_per_bat_contact", "% Contactos Squared Up", "Porcentaje de contactos donde el bate está en posición óptima. Indica calidad de swing.")
+
+
+@app.get("/rankings/blast-rate", response_model=RankingResponse, tags=["Rankings - Bat Tracking"])
+async def ranking_blast_rate():
+    """Top 10 por porcentaje de blasts por swing"""
+    return generate_bat_tracking_ranking("blast_per_swing", "% Blasts por Swing", "Porcentaje de swings que resultan en 'blast' (contacto de máxima potencia). Mide consistencia de poder.")
+
+
+@app.get("/rankings/batter-run-value", response_model=RankingResponse, tags=["Rankings - Bat Tracking"])
+async def ranking_batter_run_value():
+    """Top 10 por valor ofensivo (batter run value)"""
+    return generate_bat_tracking_ranking("batter_run_value", "Batter Run Value", "Valor en carreras producidas por el bateador. Métrica agregada de contribución ofensiva.")
+
+
+@app.get("/rankings/contact-rate", response_model=RankingResponse, tags=["Rankings - Bat Tracking"])
+async def ranking_contact_rate():
+    """Top 10 por porcentaje de contacto"""
+    return generate_bat_tracking_ranking("contact", "% Contacto", "Porcentaje de swings que resultan en contacto. Indica selectividad y disciplina.")
+
+
+@app.get("/rankings/whiff-rate", response_model=RankingResponse, tags=["Rankings - Bat Tracking"])
+async def ranking_whiff_rate():
+    """Top 10 por porcentaje de swings fallidos (orden ascendente)"""
+    return generate_bat_tracking_ranking("whiff_per_swing", "% Whiffs por Swing (Bajo es Mejor)", "Porcentaje de swings fallidos. Bajos percentiles indican mejor control.", ascending=True)
+
+
+@app.get("/rankings/swing-length", response_model=RankingResponse, tags=["Rankings - Bat Tracking"])
+async def ranking_swing_length():
+    """Top 10 por largo del swing"""
+    return generate_bat_tracking_ranking("swing_length", "Largo del Swing", "Distancia recorrida por el bate durante el swing. Mide la extensión y rango del movimiento.")
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(
