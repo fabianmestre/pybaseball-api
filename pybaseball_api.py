@@ -731,6 +731,85 @@ async def debug_ranking1_raw():
         return {"error": str(e), "type": type(e).__name__}
 
 
+# ============================================================================
+# RUTAS - EXPECTED STATS (RANKINGS)
+# ============================================================================
+
+def generate_expected_stats_ranking(metric: str, ranking_name: str, description: str, ascending: bool = False):
+    """Genera un ranking desde la hoja Expected Stats"""
+    try:
+        sheet_name = "Expected Stats"
+        encoded = urllib.parse.quote(sheet_name)
+        url = f"https://docs.google.com/spreadsheets/d/{GOOGLE_SHEET_ID}/gviz/tq?tqx=out:csv&sheet={encoded}"
+        df = pd.read_csv(url)
+
+        # Renombrar columnas a nombres simples - primeras columnas conocidas
+        new_cols = ['player', 'player_id', 'plate_appearances', 'avg_ev', 'ev90_plus', 'ev95_plus', 'barrel_pct', 'sweet_spot_pct', 'hard_hit_pct', 'xba', 'xslg', 'xobp', 'xwoba']
+        new_cols += [f'col_{i}' for i in range(len(new_cols), len(df.columns))]
+        df.columns = new_cols
+
+        df_clean = df.dropna(subset=[metric]).copy()
+        df_clean[metric] = pd.to_numeric(df_clean[metric], errors='coerce')
+        df_clean = df_clean.dropna(subset=[metric])
+
+        df_sorted = df_clean.sort_values(by=metric, ascending=ascending)
+        top_10 = []
+        for rank, (_, row) in enumerate(df_sorted.head(10).iterrows(), 1):
+            value = round(float(row[metric]), 2) if pd.notna(row[metric]) else None
+            top_10.append(RankingRecord(
+                rank=rank,
+                player_name=str(row['player']),
+                value=value,
+                percentile=round(((len(df_clean) - rank) / len(df_clean)) * 100, 1)
+            ))
+
+        return RankingResponse(ranking_id=ranking_name.replace(" ", "-"), ranking_name=ranking_name, metric=metric, description=description, top_10=top_10, league_avg=round(df_clean[metric].mean(), 2), league_min=round(df_clean[metric].min(), 2), league_max=round(df_clean[metric].max(), 2), timestamp=datetime.now().isoformat())
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/debug/expected-stats-raw", tags=["Debug"])
+async def debug_expected_stats_raw():
+    """DEBUG: Ver estructura de Expected Stats sheet"""
+    try:
+        sheet_name = "Expected Stats"
+        encoded = urllib.parse.quote(sheet_name)
+        url = f"https://docs.google.com/spreadsheets/d/{GOOGLE_SHEET_ID}/gviz/tq?tqx=out:csv&sheet={encoded}"
+        df = pd.read_csv(url)
+        return {
+            "columns": df.columns.tolist(),
+            "first_2_rows": df.head(2).to_dict(orient='records'),
+            "total_rows": int(len(df)),
+            "num_columns": int(len(df.columns))
+        }
+    except Exception as e:
+        return {"error": str(e), "type": type(e).__name__}
+
+
+@app.get("/rankings/expected-batting-average", response_model=RankingResponse, tags=["Rankings - Expected Stats"])
+async def ranking_expected_batting_average():
+    """Top 10 por xBA (Expected Batting Average)"""
+    return generate_expected_stats_ranking("xba", "Expected Batting Average (xBA)", "Promedio de bateo esperado basado en calidad de contacto. xBA predice mejor desempeño que BA actual.")
+
+
+@app.get("/rankings/expected-slugging", response_model=RankingResponse, tags=["Rankings - Expected Stats"])
+async def ranking_expected_slugging():
+    """Top 10 por xSLG (Expected Slugging)"""
+    return generate_expected_stats_ranking("xslg", "Expected Slugging (xSLG)", "Slugging esperado basado en bolas puestas en juego. Indicador predictivo de poder.", ascending=False)
+
+
+@app.get("/rankings/expected-obp", response_model=RankingResponse, tags=["Rankings - Expected Stats"])
+async def ranking_expected_obp():
+    """Top 10 por xOBP (Expected On-Base Percentage)"""
+    return generate_expected_stats_ranking("xobp", "Expected On-Base Percentage (xOBP)", "OBP esperado basado en calidad de contacto y disciplina.")
+
+
+@app.get("/rankings/expected-woba", response_model=RankingResponse, tags=["Rankings - Expected Stats"])
+async def ranking_expected_woba():
+    """Top 10 por xwOBA (Expected Weighted On-Base Average)"""
+    return generate_expected_stats_ranking("xwoba", "Expected wOBA (xwOBA)", "wOBA esperado basado en la calidad de los golpes. Mejor predictor que wOBA actual.")
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(
