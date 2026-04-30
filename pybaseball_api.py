@@ -634,6 +634,53 @@ async def get_ranking(ranking_id: str = Path(..., description="ID 1-29")):
 # INICIAR SERVIDOR
 # ============================================================================
 
+
+# ============================================================================
+# RANKING 1: EXIT VELOCITY (TOP 10)
+# ============================================================================
+
+import urllib.parse
+
+GOOGLE_SHEET_ID = "1O9vFxcntbHRa5EUGL-b3yyMwICc2GNSdvwYPLEaTPro"
+
+class RankingRecord(BaseModel):
+    rank: int
+    player_name: str
+    value: float
+    percentile: Optional[float] = None
+
+class RankingResponse(BaseModel):
+    ranking_id: str
+    ranking_name: str
+    metric: str
+    top_10: List[RankingRecord]
+    league_avg: Optional[float] = None
+    league_min: Optional[float] = None
+    league_max: Optional[float] = None
+    timestamp: str
+
+@app.get("/rankings/1", response_model=RankingResponse, tags=["Rankings"])
+async def get_ranking_1():
+    try:
+        sheet_name = "Exit Velocity"
+        encoded = urllib.parse.quote(sheet_name)
+        url = f"https://docs.google.com/spreadsheets/d/{GOOGLE_SHEET_ID}/gviz/tq?tqx=out:csv&sheet={encoded}"
+        df = pd.read_csv(url)
+        metric = "avg_hit_speed"
+        if metric not in df.columns:
+            raise ValueError(f"Columna no encontrada")
+        df_clean = df.dropna(subset=[metric])
+        df_sorted = df_clean.sort_values(metric, ascending=False)
+        df_top = df_sorted.head(10)
+        top_10 = []
+        for idx, (_, row) in enumerate(df_top.iterrows(), 1):
+            pct = (df_clean[metric] <= row[metric]).sum() / len(df_clean) * 100
+            name = str(row.get('player_name', 'Unknown'))
+            top_10.append(RankingRecord(rank=idx, player_name=name, value=round(float(row[metric]), 2), percentile=round(pct, 1)))
+        return RankingResponse(ranking_id="1", ranking_name="Exit Velocity", metric="avg_hit_speed", top_10=top_10, league_avg=round(df_clean[metric].mean(), 2), league_min=round(df_clean[metric].min(), 2), league_max=round(df_clean[metric].max(), 2), timestamp=datetime.now().isoformat())
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 if __name__ == "__main__":
     import uvicorn
 
