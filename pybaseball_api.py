@@ -638,6 +638,7 @@ async def get_ranking(ranking_id: str = Path(..., description="ID 1-29")):
 @app.get("/rankings/1", response_model=RankingResponse, tags=["Rankings"])
 async def get_ranking_1():
     """Obtiene el ranking 1 (Exit Velocity)"""
+    raise HTTPException(status_code=500, detail="TEST ERROR - Code is being updated")
     try:
         sheet_name = "Exit Velocity"
         encoded = urllib.parse.quote(sheet_name)
