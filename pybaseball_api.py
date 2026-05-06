@@ -143,10 +143,17 @@ def generate_ranking(sheet_name: str, metric: str, ranking_name: str, descriptio
         df_clean = df_clean.dropna(subset=[metric])
 
         name_col = None
-        for candidate in ['name', 'Nombre', 'Jugador', 'Player', 'player_name']:
+        for candidate in ['name', 'Nombre', 'Jugador', 'Player', 'player_name', 'entity_name', 'fielder_name', 'pitcher']:
             if candidate in df_clean.columns:
                 name_col = candidate
                 break
+
+        # Si no encontramos una columna de nombre, buscar combinación de last_name + first_name
+        if name_col is None:
+            if 'last_name' in df_clean.columns and 'first_name' in df_clean.columns:
+                df_clean['name'] = df_clean['last_name'] + ', ' + df_clean['first_name']
+                name_col = 'name'
+
         if name_col is None and len(df_clean.columns) > 0:
             name_col = df_clean.columns[0]
 
