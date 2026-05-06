@@ -593,7 +593,7 @@ async def ranking_pit_run_value():
 @app.get("/rankings/run-home-to-1b", response_model=RankingResponse, tags=["Rankings"])
 async def ranking_run_home_to_1b():
     """Top 10 corredores por tiempo casa a primera base"""
-    return generate_ranking("run-90ft Running Splits", "seconds_since_hit_000", "Home to 1B", "Tiempo promedio de casa a primera base en segundos.")
+    return generate_ranking("run-90ft Running Splits", "seconds_since_hit_090", "Home to 1B", "Tiempo promedio de casa a primera base en segundos.")
 
 
 @app.get("/rankings/pit-pitcher-running", response_model=RankingResponse, tags=["Rankings"])
