@@ -143,17 +143,27 @@ def generate_ranking(sheet_name: str, metric: str, ranking_name: str, descriptio
         df_clean = df_clean.dropna(subset=[metric])
 
         name_col = None
-        for candidate in ['name', 'Nombre', 'Jugador', 'Player', 'player_name', 'entity_name', 'fielder_name', 'pitcher']:
-            if candidate in df_clean.columns:
-                name_col = candidate
-                break
 
-        # Si no encontramos una columna de nombre, buscar combinación de last_name + first_name
+        # Buscar combinación de last_name + first_name primero
+        if 'last_name' in df_clean.columns and 'first_name' in df_clean.columns:
+            df_clean['combined_name'] = df_clean['last_name'].astype(str) + ', ' + df_clean['first_name'].astype(str)
+            name_col = 'combined_name'
+
+        # Si no, buscar una columna de nombre individual
         if name_col is None:
-            if 'last_name' in df_clean.columns and 'first_name' in df_clean.columns:
-                df_clean['name'] = df_clean['last_name'] + ', ' + df_clean['first_name']
-                name_col = 'name'
+            for candidate in ['name', 'Nombre', 'Jugador', 'Player', 'player_name', 'entity_name', 'fielder_name', 'pitcher']:
+                if candidate in df_clean.columns:
+                    name_col = candidate
+                    break
 
+        # Si aún no encontramos, usar la primera columna que no sea numérica
+        if name_col is None:
+            for col in df_clean.columns:
+                if df_clean[col].dtype == 'object' and col not in ['year', 'team_name', 'pitch_type', 'pitch_hand']:
+                    name_col = col
+                    break
+
+        # Último recurso: primera columna
         if name_col is None and len(df_clean.columns) > 0:
             name_col = df_clean.columns[0]
 
