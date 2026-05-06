@@ -546,6 +546,71 @@ async def ranking_fld_catch_probability():
     return generate_ranking("fld-Outfield Catch Prob", "n_5star_percent", "Catch Probability", "Porcentaje de atrapadas en plays de 5 estrellas.")
 
 
+# BATEO - 2 nuevos rankings
+@app.get("/rankings/bat-hard-hit", response_model=RankingResponse, tags=["Rankings"])
+async def ranking_bat_hard_hit():
+    """Top 10 bateadores por porcentaje de hard hit"""
+    return generate_ranking("bat-Percentiles", "hard_hit_percent", "Hard Hit %", "Porcentaje de golpes con salida fuerte (>90 mph).")
+
+
+@app.get("/rankings/bat-expected-woba", response_model=RankingResponse, tags=["Rankings"])
+async def ranking_bat_expected_woba():
+    """Top 10 bateadores por expected wOBA"""
+    return generate_ranking("bat-Expected Stats", "est_woba", "Expected wOBA", "wOBA esperado basado en calidad de contacto.")
+
+
+# PITCHEO - 2 nuevos rankings
+@app.get("/rankings/pit-whiff-rate", response_model=RankingResponse, tags=["Rankings"])
+async def ranking_pit_whiff_rate():
+    """Top 10 lanzadores por whiff rate"""
+    return generate_ranking("pit-Percentiles", "whiff_percent", "Whiff %", "Porcentaje de swings sin contacto.")
+
+
+@app.get("/rankings/pit-run-value", response_model=RankingResponse, tags=["Rankings"])
+async def ranking_pit_run_value():
+    """Top 10 lanzadores por run value per 100"""
+    return generate_ranking("pit-Pitch Arsenal", "run_value_per_100", "Run Value/100", "Valor en carreras por cada 100 pitches.")
+
+
+# RUNNING - 2 nuevos rankings
+@app.get("/rankings/run-home-to-1b", response_model=RankingResponse, tags=["Rankings"])
+async def ranking_run_home_to_1b():
+    """Top 10 corredores por tiempo casa a primera base"""
+    return generate_ranking("run-90ft Running Splits", "seconds_since_hit_000", "Home to 1B", "Tiempo promedio de casa a primera base en segundos.")
+
+
+@app.get("/rankings/pit-pitcher-running", response_model=RankingResponse, tags=["Rankings"])
+async def ranking_pit_pitcher_running():
+    """Top 10 lanzadores por prevención de robo de bases"""
+    return generate_ranking("pit-Running Game", "runs_prevented_on_running_attr", "Pitcher Running", "Carreras prevenidas por atributos de pitching en running.")
+
+
+# CATCHING - 2 nuevos rankings
+@app.get("/rankings/cat-stealing-runs", response_model=RankingResponse, tags=["Rankings"])
+async def ranking_cat_stealing_runs():
+    """Top 10 catchers por carreras en robo de bases"""
+    return generate_ranking("cat-Catcher Throwing", "catcher_stealing_runs", "Stealing Runs", "Carreras por evitar robo de bases.")
+
+
+@app.get("/rankings/cat-stance-framing", response_model=RankingResponse, tags=["Rankings"])
+async def ranking_cat_stance_framing():
+    """Top 10 catchers por framing en postura"""
+    return generate_ranking("cat-Catcher Stance", "one_knee_framing_rv", "Stance Framing", "Valor en framing usando una rodilla.")
+
+
+# FIELDING - 2 nuevos rankings
+@app.get("/rankings/fld-arm-value", response_model=RankingResponse, tags=["Rankings"])
+async def ranking_fld_arm_value():
+    """Top 10 defensores por valor del brazo"""
+    return generate_ranking("fld-Arm Value", "fielder_runs", "Arm Value", "Carreras prevenidas por fuerza de brazo.")
+
+
+@app.get("/rankings/fld-directional-oaa", response_model=RankingResponse, tags=["Rankings"])
+async def ranking_fld_directional_oaa():
+    """Top 10 outfielders por OAA direccional"""
+    return generate_ranking("fld-Outfield Dir OAA", "n_oaa_slice_back", "Directional OAA", "Outs above average en dirección hacia atrás.")
+
+
 # ============================================================================
 # RUTA RAÍZ
 # ============================================================================
