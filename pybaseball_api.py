@@ -416,40 +416,129 @@ async def player_reverse_lookup(
 # RUTAS - RANKINGS (desde Google Sheets)
 # ============================================================================
 
-@app.get("/rankings/bat-speed", response_model=RankingResponse, tags=["Rankings"])
-async def ranking_bat_speed():
-    """Top 10 por velocidad del bate (Run Value Total)"""
-    return generate_ranking("Percentiles", "rv_tot", "Bat Speed", "Velocidad promedio del bate en mph. Correlaciona con poder ofensivo.")
+# BATEO (4 rankings)
+@app.get("/rankings/bat-exit-velocity", response_model=RankingResponse, tags=["Rankings"])
+async def ranking_bat_exit_velocity():
+    """Top 10 bateadores por exit velocity"""
+    return generate_ranking("bat-Percentiles", "exit_velocity", "Exit Velocity", "Velocidad de salida del bate en mph. Indica potencia bruta del bateador.")
 
 
-@app.get("/rankings/exit-velocity-percentile", response_model=RankingResponse, tags=["Rankings"])
-async def ranking_exit_velocity_percentile():
-    """Top 10 por exit velocity percentile"""
-    return generate_ranking("Percentiles", "pct_tot", "Exit Velocity Percentile", "Percentil de velocidad de salida. Jugadores en altos percentiles poseen más potencia bruta.")
+@app.get("/rankings/bat-barrels", response_model=RankingResponse, tags=["Rankings"])
+async def ranking_bat_barrels():
+    """Top 10 bateadores por barrels"""
+    return generate_ranking("bat-Exit Velocity", "barrels", "Barrels", "Cantidad de barrels. Contacto óptimo con máxima eficiencia.")
 
 
-@app.get("/rankings/barrels", response_model=RankingResponse, tags=["Rankings"])
-async def ranking_barrels():
-    """Top 10 por barrels (Run Value vs Fastballs)"""
-    return generate_ranking("Bat Tracking", "rv_11", "Barrels", "Barrels y contactos de máxima eficiencia. Mide contacto de calidad con máxima potencia.")
+@app.get("/rankings/bat-home-runs", response_model=RankingResponse, tags=["Rankings"])
+async def ranking_bat_home_runs():
+    """Top 10 bateadores por home runs"""
+    return generate_ranking("bat-Home Runs", "hr_total", "Home Runs", "Total de home runs bateados en la temporada.")
 
 
-@app.get("/rankings/hard-hit-percentile", response_model=RankingResponse, tags=["Rankings"])
-async def ranking_hard_hit_percentile():
-    """Top 10 por hard hit percent percentile"""
-    return generate_ranking("Batted Ball", "pct_11", "Hard Hit % Percentile", "Percentil de porcentaje de golpes duros (exit velocity > 95 mph). Indica consistencia de potencia.")
+@app.get("/rankings/bat-bat-speed", response_model=RankingResponse, tags=["Rankings"])
+async def ranking_bat_bat_speed():
+    """Top 10 bateadores por velocidad del bate"""
+    return generate_ranking("bat-Swing Path", "avg_bat_speed", "Bat Speed", "Velocidad promedio del bate en mph.")
 
 
-@app.get("/rankings/barrel-percentage", response_model=RankingResponse, tags=["Rankings"])
-async def ranking_barrel_percentage():
-    """Top 10 por barrel percentage"""
-    return generate_ranking("Expected Stats", "pct_tot", "Barrel %", "Porcentaje de contactos que son barrels. Máxima combinación de ángulo y velocidad de salida.")
+# PITCHEO (4 rankings)
+@app.get("/rankings/pit-xera", response_model=RankingResponse, tags=["Rankings"])
+async def ranking_pit_xera():
+    """Top 10 lanzadores por xERA"""
+    return generate_ranking("pit-Percentiles", "xera", "xERA", "ERA esperado. Rendimiento esperado del lanzador.")
 
 
-@app.get("/rankings/sprint-speed-percentile", response_model=RankingResponse, tags=["Rankings"])
-async def ranking_sprint_speed_percentile():
-    """Top 10 por sprint speed percentile"""
-    return generate_ranking("Home Runs", "pct_tot", "Sprint Speed Percentile", "Percentil de velocidad de carrera. Atletas con altos percentiles tienen mejor velocidad base.")
+@app.get("/rankings/pit-fastball-velocity", response_model=RankingResponse, tags=["Rankings"])
+async def ranking_pit_fastball_velocity():
+    """Top 10 lanzadores por velocidad de fastball"""
+    return generate_ranking("pit-Percentiles", "fb_velocity", "Fastball Velocity", "Velocidad promedio del fastball en mph.")
+
+
+@app.get("/rankings/pit-pitch-movement", response_model=RankingResponse, tags=["Rankings"])
+async def ranking_pit_pitch_movement():
+    """Top 10 lanzadores por movimiento de pitches"""
+    return generate_ranking("pit-Pitch Movement", "diff_x", "Pitch Movement", "Movimiento horizontal del pitch en pulgadas.")
+
+
+@app.get("/rankings/pit-active-spin", response_model=RankingResponse, tags=["Rankings"])
+async def ranking_pit_active_spin():
+    """Top 10 lanzadores por active spin del fastball"""
+    return generate_ranking("pit-Active Spin", "active_spin_fourseam", "Active Spin", "Spin activo del fastball. Determina movimiento efectivo.")
+
+
+# RUNNING (4 rankings)
+@app.get("/rankings/run-sprint-speed", response_model=RankingResponse, tags=["Rankings"])
+async def ranking_run_sprint_speed():
+    """Top 10 corredores por velocidad de carrera"""
+    return generate_ranking("run-Sprint Speed", "sprint_speed", "Sprint Speed", "Velocidad de carrera en ft/s. Velocidad máxima en línea recta.")
+
+
+@app.get("/rankings/run-baserunning-value", response_model=RankingResponse, tags=["Rankings"])
+async def ranking_run_baserunning_value():
+    """Top 10 corredores por valor de base running"""
+    return generate_ranking("run-Baserunning Run Value", "runner_runs_tot", "Baserunning Value", "Valor total en carreras por base running.")
+
+
+@app.get("/rankings/run-basestealing-value", response_model=RankingResponse, tags=["Rankings"])
+async def ranking_run_basestealing_value():
+    """Top 10 corredores por robo de bases"""
+    return generate_ranking("run-Basestealing Run Value", "runs_stolen_on_running_act", "Basestealing Value", "Valor en carreras por robo de bases exitoso.")
+
+
+@app.get("/rankings/run-extra-bases", response_model=RankingResponse, tags=["Rankings"])
+async def ranking_run_extra_bases():
+    """Top 10 corredores por bases extra tomadas"""
+    return generate_ranking("run-Extra Bases Taken", "runner_runs", "Extra Bases Taken", "Valor en carreras por tomar bases extra.")
+
+
+# CATCHING (4 rankings)
+@app.get("/rankings/cat-framing", response_model=RankingResponse, tags=["Rankings"])
+async def ranking_cat_framing():
+    """Top 10 catchers por framing"""
+    return generate_ranking("cat-Catcher Framing", "rv_tot", "Catcher Framing", "Valor en carreras por framing de pitches.")
+
+
+@app.get("/rankings/cat-pop-time", response_model=RankingResponse, tags=["Rankings"])
+async def ranking_cat_pop_time():
+    """Top 10 catchers por pop time"""
+    return generate_ranking("cat-Pop Time", "pop_2b_sba", "Pop Time", "Tiempo promedio de pop time a segunda base en segundos.")
+
+
+@app.get("/rankings/cat-throwing", response_model=RankingResponse, tags=["Rankings"])
+async def ranking_cat_throwing():
+    """Top 10 catchers por arm strength"""
+    return generate_ranking("cat-Catcher Throwing", "arm_strength", "Throwing", "Fuerza de brazo del catcher. Velocidad de lanzamiento.")
+
+
+@app.get("/rankings/cat-blocking", response_model=RankingResponse, tags=["Rankings"])
+async def ranking_cat_blocking():
+    """Top 10 catchers por bloqueo de pitches"""
+    return generate_ranking("cat-Catcher Blocking", "catcher_blocking_runs", "Blocking", "Valor en carreras por bloqueo de pitches en la suciedad.")
+
+
+# FIELDING (4 rankings)
+@app.get("/rankings/fld-outs-above-average", response_model=RankingResponse, tags=["Rankings"])
+async def ranking_fld_outs_above_average():
+    """Top 10 defensores por outs above average"""
+    return generate_ranking("fld-Outs Above Average", "outs_above_average", "Outs Above Average", "Outs por encima del promedio. Métrica de defensa.")
+
+
+@app.get("/rankings/fld-arm-strength", response_model=RankingResponse, tags=["Rankings"])
+async def ranking_fld_arm_strength():
+    """Top 10 defensores por arm strength"""
+    return generate_ranking("fld-Arm Strength", "max_arm_strength", "Arm Strength", "Fuerza de brazo máxima en mph.")
+
+
+@app.get("/rankings/fld-fielding-runs", response_model=RankingResponse, tags=["Rankings"])
+async def ranking_fld_fielding_runs():
+    """Top 10 defensores por valor de defensa"""
+    return generate_ranking("fld-Fielding Run Value", "total_runs", "Fielding Runs", "Carreras evitadas por defensa total.")
+
+
+@app.get("/rankings/fld-catch-probability", response_model=RankingResponse, tags=["Rankings"])
+async def ranking_fld_catch_probability():
+    """Top 10 outfielders por probabilidad de catch"""
+    return generate_ranking("fld-Outfield Catch Prob", "n_5star_percent", "Catch Probability", "Porcentaje de atrapadas en plays de 5 estrellas.")
 
 
 # ============================================================================
