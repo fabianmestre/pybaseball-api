@@ -142,11 +142,19 @@ def generate_ranking(sheet_name: str, metric: str, ranking_name: str, descriptio
         df_clean[metric] = pd.to_numeric(df_clean[metric], errors='coerce')
         df_clean = df_clean.dropna(subset=[metric])
 
+        name_col = None
+        for candidate in ['name', 'Nombre', 'Jugador', 'Player', 'player_name']:
+            if candidate in df_clean.columns:
+                name_col = candidate
+                break
+        if name_col is None and len(df_clean.columns) > 0:
+            name_col = df_clean.columns[0]
+
         df_sorted = df_clean.sort_values(by=metric, ascending=ascending)
         top_10 = []
         for rank, (_, row) in enumerate(df_sorted.head(10).iterrows(), 1):
             value = round(float(row[metric]), 2) if pd.notna(row[metric]) else None
-            player_name = str(row['name'])
+            player_name = str(row[name_col]) if name_col and name_col in row else 'N/A'
             top_10.append(RankingRecord(
                 rank=rank,
                 player_name=player_name,
@@ -163,10 +171,9 @@ def generate_ranking(sheet_name: str, metric: str, ranking_name: str, descriptio
             league_avg=round(df_clean[metric].mean(), 2) if len(df_clean) > 0 else None,
             league_min=round(df_clean[metric].min(), 2) if len(df_clean) > 0 else None,
             league_max=round(df_clean[metric].max(), 2) if len(df_clean) > 0 else None,
-            timestamp=datetime.now().isoformat()
         )
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=f"Error al generar ranking: {str(e)}")
 
 
 # ============================================================================
