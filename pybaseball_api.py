@@ -98,7 +98,7 @@ class RankingResponse(BaseModel):
     league_avg: Optional[float] = None
     league_min: Optional[float] = None
     league_max: Optional[float] = None
-    timestamp: str
+    timestamp: Optional[str] = None
 
 
 # Google Sheet configuration
