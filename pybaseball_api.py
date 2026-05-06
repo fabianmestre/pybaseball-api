@@ -12,6 +12,7 @@ import pybaseball as pyb
 import pandas as pd
 import json
 from datetime import datetime
+import urllib.parse
 
 # ============================================================================
 # CONFIGURACIÓN INICIAL
@@ -87,6 +88,31 @@ class DataframeResponse(BaseModel):
     timestamp: str = Field(..., description="Timestamp de la respuesta")
 
 
+class RankingRecord(BaseModel):
+    """Record individual del ranking"""
+    rank: int
+    player_name: str
+    value: float
+    percentile: Optional[float] = None
+
+
+class RankingResponse(BaseModel):
+    """Respuesta de un ranking"""
+    ranking_id: str
+    ranking_name: str
+    metric: str
+    description: str
+    top_10: List[RankingRecord]
+    league_avg: Optional[float] = None
+    league_min: Optional[float] = None
+    league_max: Optional[float] = None
+    timestamp: str
+
+
+# Google Sheet configuration
+GOOGLE_SHEET_ID = "1O9vFxcntbHRa5EUGL-b3yyMwICc2GNSdvwYPLEaTPro"
+
+
 # ============================================================================
 # FUNCIONES UTILITARIAS
 # ============================================================================
@@ -111,6 +137,44 @@ def dataframe_to_response(df: pd.DataFrame) -> dict:
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al procesar datos: {str(e)}")
+
+
+def generate_ranking(sheet_name: str, metric: str, ranking_name: str, description: str, ascending: bool = False) -> RankingResponse:
+    """Genera un ranking desde Google Sheets"""
+    try:
+        encoded = urllib.parse.quote(sheet_name)
+        url = f"https://docs.google.com/spreadsheets/d/{GOOGLE_SHEET_ID}/gviz/tq?tqx=out:csv&sheet={encoded}"
+        df = pd.read_csv(url)
+
+        df_clean = df.dropna(subset=[metric]).copy()
+        df_clean[metric] = pd.to_numeric(df_clean[metric], errors='coerce')
+        df_clean = df_clean.dropna(subset=[metric])
+
+        df_sorted = df_clean.sort_values(by=metric, ascending=ascending)
+        top_10 = []
+        for rank, (_, row) in enumerate(df_sorted.head(10).iterrows(), 1):
+            value = round(float(row[metric]), 2) if pd.notna(row[metric]) else None
+            player_name = str(row['name'])
+            top_10.append(RankingRecord(
+                rank=rank,
+                player_name=player_name,
+                value=value,
+                percentile=round(((len(df_clean) - rank) / len(df_clean)) * 100, 1)
+            ))
+
+        return RankingResponse(
+            ranking_id=ranking_name.replace(" ", "-"),
+            ranking_name=ranking_name,
+            metric=metric,
+            description=description,
+            top_10=top_10,
+            league_avg=round(df_clean[metric].mean(), 2) if len(df_clean) > 0 else None,
+            league_min=round(df_clean[metric].min(), 2) if len(df_clean) > 0 else None,
+            league_max=round(df_clean[metric].max(), 2) if len(df_clean) > 0 else None,
+            timestamp=datetime.now().isoformat()
+        )
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 # ============================================================================
@@ -502,6 +566,46 @@ async def get_splits(
         return dataframe_to_response(df)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+# ============================================================================
+# RUTAS - RANKINGS (desde Google Sheets)
+# ============================================================================
+
+@app.get("/rankings/bat-speed", response_model=RankingResponse, tags=["Rankings"])
+async def ranking_bat_speed():
+    """Top 10 por velocidad del bate (Run Value Total)"""
+    return generate_ranking("Percentiles", "rv_tot", "Bat Speed", "Velocidad promedio del bate en mph. Correlaciona con poder ofensivo.")
+
+
+@app.get("/rankings/exit-velocity-percentile", response_model=RankingResponse, tags=["Rankings"])
+async def ranking_exit_velocity_percentile():
+    """Top 10 por exit velocity percentile"""
+    return generate_ranking("Percentiles", "pct_tot", "Exit Velocity Percentile", "Percentil de velocidad de salida. Jugadores en altos percentiles poseen más potencia bruta.")
+
+
+@app.get("/rankings/barrels", response_model=RankingResponse, tags=["Rankings"])
+async def ranking_barrels():
+    """Top 10 por barrels (Run Value vs Fastballs)"""
+    return generate_ranking("Bat Tracking", "rv_11", "Barrels", "Barrels y contactos de máxima eficiencia. Mide contacto de calidad con máxima potencia.")
+
+
+@app.get("/rankings/hard-hit-percentile", response_model=RankingResponse, tags=["Rankings"])
+async def ranking_hard_hit_percentile():
+    """Top 10 por hard hit percent percentile"""
+    return generate_ranking("Batted Ball", "pct_11", "Hard Hit % Percentile", "Percentil de porcentaje de golpes duros (exit velocity > 95 mph). Indica consistencia de potencia.")
+
+
+@app.get("/rankings/barrel-percentage", response_model=RankingResponse, tags=["Rankings"])
+async def ranking_barrel_percentage():
+    """Top 10 por barrel percentage"""
+    return generate_ranking("Expected Stats", "pct_tot", "Barrel %", "Porcentaje de contactos que son barrels. Máxima combinación de ángulo y velocidad de salida.")
+
+
+@app.get("/rankings/sprint-speed-percentile", response_model=RankingResponse, tags=["Rankings"])
+async def ranking_sprint_speed_percentile():
+    """Top 10 por sprint speed percentile"""
+    return generate_ranking("Home Runs", "pct_tot", "Sprint Speed Percentile", "Percentil de velocidad de carrera. Atletas con altos percentiles tienen mejor velocidad base.")
 
 
 # ============================================================================
